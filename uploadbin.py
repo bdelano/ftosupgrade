@@ -1,12 +1,16 @@
 #!/opt/local/scripts/python/ftosupgrade/bin/python2.7
 import json
 import logging
+import time
 import os
 from peconnect import *
 from mysql import *
 BINFILE='FTOS-SK-9.14.1.0.bin'
+NUMFORKS=10
+REGION='ap-southeast'
 
 def uploadbin(hostname):
+    print("working on %s..." % hostname)
     logging.basicConfig(filename='%s.log' % hostname,level=logging.DEBUG)
     pe=peconnect(ip=hostname,debug=1,binfile=BINFILE)
     if pe.devinfo['binfilestatus'].has_key('error'):
@@ -23,6 +27,11 @@ def uploadbin(hostname):
     pe.exit()
     os._exit(0)
 
+def testchild(hostname):
+    print("working on hostname:%s" % hostname)
+    time.sleep(10)
+    os._exit(0)
+
 def makeforks(mylist,child):
     print(mylist)
     for hn in mylist:
@@ -31,12 +40,9 @@ def makeforks(mylist,child):
             child(hn)
         else:
             pids = (os.getpid(), pid)
-            #print("parent: %d, child: %d" % pids)
     for i in range(len(mylist)):
         finished = os.waitpid(0, 0)
-        #print(finished)
     print("all done")
-    print(mylist)
 
 def gethosts():
     dbh=mysql()
@@ -46,19 +52,16 @@ def gethosts():
     join sites as s on s.id=d.siteid
     where d.newreq='tor'
     and d.vendor='dell'
-    and s.regionname='ap-southeast'
-    limit 5
-    """
+    and s.regionname='{region}'
+    limit 20
+    """.format(region=REGION)
     dbh.buildretdict(sql)
     flist=list()
     i=0
     for o in dbh.retdict:
         hn=o['trignodename']
-        print hn
-        print(i)
-        if i<4:
+        if i<int(NUMFORKS):
             flist.append(hn)
-            print(flist)
             i=i+1
         else:
             i=0
@@ -67,4 +70,3 @@ def gethosts():
     makeforks(flist,uploadbin)
 
 gethosts()
-#uploadbin('sin301-tor01-0310')
