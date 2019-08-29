@@ -27,6 +27,7 @@ class oglogon:
             self.customer=kw['customer']
         else:
             self.customer='spc'
+        self.logfile=kw['logfile']
         auth_dict=og_dict[self.customer]
         self.ogp=auth_dict[ogu]
         self.debug=None
@@ -49,7 +50,7 @@ class oglogon:
     def logon(self):
         self.e=pexpect.spawn(self.sshcmd)
         #e.delaybeforesend = 1
-        if self.debug: self.e.logfile = sys.stdout
+
         #e.timeout = 15
         self.e.expect('assword.*')
         self.info("DEBUG: sending password...")
@@ -57,6 +58,7 @@ class oglogon:
         if self.port:
             self.e.expect(".")
             self.e.sendline()
+        self.e.logfile = open(self.logfile, 'a')
         exp_list=['assword.*','Connect to port','\$','Login.*','[\w] login.*','Username:','login.*','Big Monitoring Fabric','barracuda.com','Peakflow',':\/#','IPv4 address','\@[\w-]+>','\@[\w-]+#',':>','>','#','Press RETURN to get started',pexpect.TIMEOUT,pexpect.EOF]
         self.info("list size:"+str(len(exp_list)))
         resp=self.e.expect(exp_list,timeout=5)

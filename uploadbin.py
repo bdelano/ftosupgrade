@@ -53,7 +53,6 @@ def gethosts():
     where d.newreq='tor'
     and d.vendor='dell'
     and s.regionname='{region}'
-    limit 20
     """.format(region=REGION)
     dbh.buildretdict(sql)
     flist=list()
