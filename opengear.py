@@ -4,7 +4,6 @@ import re            # for regular expressions
 import time            # for sleep and time related functions
 from localauth import *
 
-
 class oglogon:
     def __init__(self,**kw):
         """
@@ -27,7 +26,10 @@ class oglogon:
             self.customer=kw['customer']
         else:
             self.customer='spc'
-        self.logfile=kw['logfile']
+        if kw.has_key('logfile'):
+            self.logfile=kw['logfile']
+        else:
+            self.logfile=sys.stdout
         auth_dict=og_dict[self.customer]
         self.ogp=auth_dict[ogu]
         self.debug=None
@@ -35,6 +37,8 @@ class oglogon:
         self.status=None
         self.message=None
         self.vendor=None
+        self.wfsdata=''
+        self.wfsll=None
         if kw.has_key('debug'): self.debug=kw['debug']
         if kw.has_key('port'):
             self.port=kw['port']
@@ -113,6 +117,28 @@ class oglogon:
             result=['fail','unable to logon to %s@%s' % (self.u,self.ip),None]
         (self.status,self.message,self.vendor)=result
 
+    def waitforstream(self):
+        """
+        take pexpect session and wait for stream to stop, resetting timeout as needed
+        """
+        stopchecking=False
+        data=''
+        while not stopchecking:
+            try:
+                # default timeout for pexpect-spawn object is 30s
+                data=self.e.read_nonblocking(1024, timeout=5)
+                self.wfsdata=self.wfsdata+data
+                time.sleep(1)
+            # continue reading data from 'session' until the thread is stopped
+            except pexpect.TIMEOUT:
+                print("timeout reached")
+                ls=data.split("\n")
+                self.wfsll=ls[-1]
+                stopchecking=True
+            except Exception as exception:
+                print(exception)
+                break
+
     def remlogon(self):
         """
         login to remote device after authenticating with opengear
@@ -172,7 +198,7 @@ class oglogon:
                 self.message=tresp
             else:
                 self.status='success'
-                self.message=tresp
+                self.message='all logged in!'
         else:
             self.status='fail'
             self.message='vendor not found'
