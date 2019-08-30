@@ -8,7 +8,7 @@ from ogconnect import *
 class prepare():
     def __init__(self,**kw):
         self.hostname=kw['hostname']
-        self.info("working on %s..." % self.hostname)
+        self.info("preparing %s for upgrade..." % self.hostname)
         self.binfile=kw['options'].binfile
         self.options=kw['options']
         self.path=os.getcwd()+'/'+self.hostname
@@ -26,6 +26,9 @@ class prepare():
             self.checkOG()
             self.info('--connecting to device')
             self.pe=pelogon(ip=self.hostname,binfile=self.binfile,logfile=self.path+'/raw.log')
+            if self.upinfo['oginfo'].has_key('mgmtip'):
+                if self.pe.prompt != self.og.prompt:
+                    self.errors.append('The prompt on the opengear does not match! Please investigate!')
             self.runprescripts()
             self.info('---updating boot info, this may take a little while...')
             self.pe.updateBoot()
@@ -56,14 +59,21 @@ class prepare():
 
     def checkOG(self):
         self.info('--checking opengear connectivity...')
-        if self.upinfo['oginfo'].has_key('mgtmip'):
+        if self.upinfo['oginfo'].has_key('mgmtip'):
             self.og=oglogon(ip=self.upinfo['oginfo']['mgmtip'],port=self.upinfo['oginfo']['interface'],logfile=self.path+'/raw.log')
             self.og.remlogon()
+            self.upinfo['oginfo']['status']=self.og.status
+            self.upinfo['oginfo']['vendor']=self.og.vendor
+            self.upinfo['oginfo']['message']=self.og.message
+            if self.og.status != 'success':
+                self.errors.append('og:'+str(message))
+            else:
+                self.og.e.sendline('show version')
+                self.og.waitforstream()
+                self.og.prompt=self.og.wfsll
+                self.og.e.sendline('exit')
+                self.og.e.expect('.*')
             self.og.e.terminate()
-            self.upinfo['oginfo']['status']=og.status
-            self.upinfo['oginfo']['vendor']=og.vendor
-            self.upinfo['oginfo']['message']=og.message
-            if og.status != 'success': self.errors.append('og:'+str(message))
 
     def runprescripts(self):
         self.info('---running PRE commands')

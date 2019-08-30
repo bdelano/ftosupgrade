@@ -121,6 +121,7 @@ class pelogon:
             svl=shver.split("\r\n")
             self.confprompt=svl[-1]+'\(conf\)#'
             self.prompt=ll=svl[-1]+str('#')
+            self.devinfo['prompt']=self.prompt
             self.info('ll:'+ll)
             for l in svl:
                 if ':' in l:
@@ -143,6 +144,7 @@ class pelogon:
         self.info('Exiting Device')
         self.e.sendline('exit')
         self.e.expect(pexpect.EOF)
+        self.e.terminate()
         #self.nm.disconnect()
 
     def addConfig(self,cmdlist):

@@ -8,7 +8,7 @@ from ogconnect import *
 class upgrade():
     def __init__(self,**kw):
         self.hostname=kw['hostname']
-        self.info("-working on %s..." % self.hostname)
+        self.info("upgrading %s..." % self.hostname)
         self.binfile=kw['options'].binfile
         self.options=kw['options']
         self.path=os.getcwd()+'/'+self.hostname

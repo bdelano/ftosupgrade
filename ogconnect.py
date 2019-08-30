@@ -37,6 +37,7 @@ class oglogon:
         self.status=None
         self.message=None
         self.vendor=None
+        self.prompt=None
         self.wfsdata=''
         self.wfsll=None
         if kw.has_key('debug'): self.debug=kw['debug']
@@ -131,7 +132,6 @@ class oglogon:
                 time.sleep(1)
             # continue reading data from 'session' until the thread is stopped
             except pexpect.TIMEOUT:
-                print("timeout reached")
                 ls=data.split("\n")
                 self.wfsll=ls[-1]
                 stopchecking=True
@@ -145,8 +145,9 @@ class oglogon:
         """
         prompt_dict={"juniper":"@[\w].*>","dell":"#","cisco":"#","arista":"#"}
         p=up_dict[self.user]
+        self.e.logfile=None
         if(prompt_dict.has_key(self.vendor)):
-            prompt=prompt_dict[self.vendor]
+            self.prompt=prompt_dict[self.vendor]
             #print prompt
             if self.message=='login':
                 self.e.sendline(self.user)
@@ -158,7 +159,8 @@ class oglogon:
                 #print "resp2:%s" % resp
                 #time.sleep(1)
                 self.e.sendline(p)
-                resp=self.e.expect([prompt,'[\w]>','Last login','Login succ','Authentication failed','ogin incorrect','pam_open_session: session failure',pexpect.TIMEOUT,pexpect.EOF])
+                self.e.logfile=open(self.logfile,'a')
+                resp=self.e.expect([self.prompt,'[\w]>','Last login','Login succ','Authentication failed','ogin incorrect','pam_open_session: session failure',pexpect.TIMEOUT,pexpect.EOF])
                 if resp>4:
                     self.status='fail'
                     self.message='invalid response: '+self.e.before
@@ -167,21 +169,21 @@ class oglogon:
                     self.message='login failure'
                 elif resp>0 and resp<4:
                     self.e.sendline()
-                    resp=self.e.expect([prompt,'>'])
+                    resp=self.e.expect([self.prompt,'>'])
                     if resp==1 and self.vendor=='dell':
                         self.status='noenable'
                         self.message='need to jump to enable mode'
                         self.remlogon()
             elif self.message=='editmode':
                 e.sendline('exit')
-                e.expect(prompt)
+                e.expect(self.prompt)
             elif self.status=='noenable':
                 print "sending enable..."
                 self.e.sendline('en')
-                enresp=self.e.expect([prompt,'assword','top-level commands are available','Session expired or cancelled'])
+                enresp=self.e.expect([self.prompt,'assword','top-level commands are available','Session expired or cancelled'])
                 if enresp==1:
                     self.e.sendline(enp)
-                    enpwresp=self.e.expect([prompt,'Last login','Login succ','assword','failure','pam_open_session: session failure',pexpect.TIMEOUT,pexpect.EOF])
+                    enpwresp=self.e.expect([self.prompt,'Last login','Login succ','assword','failure','pam_open_session: session failure',pexpect.TIMEOUT,pexpect.EOF])
                     if enpwresp>4:
                         self.status='fail'
                         self.message='invalid response: '+self.e.before
@@ -192,7 +194,7 @@ class oglogon:
                     self.status='fail'
                     self.message='login failure'
             self.e.sendline()
-            tresp=self.e.expect([prompt,'Error','error','Invalid','not found'])
+            tresp=self.e.expect([self.prompt,'Error','error','Invalid','not found'])
             if tresp>0:
                 self.status='fail'
                 self.message=tresp
