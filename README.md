@@ -1,6 +1,17 @@
-## Collection of scripts to upgrade FTOS
-This is specific to our company build so it most likely will not work out of the box with your environment.  It was put together quickly and isn't meant to be pretty or user friendly
+# Collection of scripts to upgrade FTOS
+This is specific to our company build so it most likely will not work out of the box with your environment.  The code was put together quickly and isn't meant to be pretty or user friendly
 
+<!-- MDTOC maxdepth:6 firsth1:2 numbering:0 flatten:0 bullets:1 updateOnSave:1 -->
+
+- [Intallation](#intallation)   
+- [Distributing your binary files](#distributing-your-binary-files)   
+   - [notes](#notes)   
+- [Running the upgrade script](#running-the-upgrade-script)   
+   - [Prepare the switches for upgrade](#prepare-the-switches-for-upgrade)   
+   - [Upgrade process](#upgrade-process)   
+- [Backout /  Downgrade](#backout-downgrade)   
+
+<!-- /MDTOC -->
 ## Intallation
 Its probably easiest to just install this in a virtual environment so as not to mess with the current modules
 * create environment `virtualenv ftosupgrade`
@@ -28,6 +39,7 @@ Its probably easiest to just install this in a virtual environment so as not to 
 
 ### Prepare the switches for upgrade
 * opengear connectivity will be validated and will be listed in the prepare output
+* prompt will be compared between opengear and ssh to device
 * build directories to support pre,post and log files
 * check that binfile exists on the remote devices and is valid (md5)
 * add your binary to the 'alternate' slot A or B
@@ -46,8 +58,9 @@ Its probably easiest to just install this in a virtual environment so as not to 
 * a JSON file `<devicename>/devinfo.json` will be created to track history of the upgrade used for any necessary stateful information
 
 ### Upgrade process
+* check if the switch is already upgraded
 * login to switch via opengear connection
-* run the `reload` command and wait for prompt
+* run the `reload` command acknowledge and wait for prompt
 * login to switch again via ssh
 * run post checks (see pre-check commands)
 * run diffs between pre and post checks
@@ -55,4 +68,5 @@ Its probably easiest to just install this in a virtual environment so as not to 
 * esclate if any issues
 
 ## Backout /  Downgrade
-* TBD
+* restore previous boot config
+* reload device?
