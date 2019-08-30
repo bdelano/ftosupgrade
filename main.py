@@ -10,6 +10,7 @@ from prepare import *
 from upgrade import *
 from backout import *
 VERSION='.01BETA'
+BINFILEPATH='/tftpboot/Dell/'
 
 class textTools:
     def __init__(self,msg):
@@ -36,14 +37,13 @@ class main():
                 dl=options.devices.split(",")
                 for d in dl:
                     if options.type=='prepare':
-                        p=prepare(hostname=d,options=options)
+                        p=prepare(hostname=d,options=options,binfilepath=BINFILEPATH)
                     elif options.type=='backout':
                         b=backout(hostname=d,options=options)
                     elif options.type=='upgrade':
-                        p=prepare(hostname=d,options=options)
+                        p=prepare(hostname=d,options=options,binfilepath=BINFILEPATH)
                         if len(p.errors)<1:
                             u=upgrade(hostname=d,options=options)
-
 
             else:
                 print("please create a directory called ftosupgrade:\nmkdir ftosupgrade\nchange to that directory\ncd ftosupgrade\nand re-run this command")

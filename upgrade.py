@@ -3,7 +3,6 @@ import logging
 import json
 from peconnect import *
 from mysql import *
-from ogconnect import *
 
 class upgrade():
     def __init__(self,**kw):
@@ -12,9 +11,9 @@ class upgrade():
         self.binfile=kw['options'].binfile
         self.options=kw['options']
         self.path=os.getcwd()+'/'+self.hostname
-        self.upinfofile=self.path+'/devinfo.json'
+        self.devinfofile=self.path+'/devinfo.json'
         self.errors=list()
-        self.upinfo={}
+        self.devinfo={}
         self.status='fail'
         logging.basicConfig(filename=self.path+'/raw.log',level=logging.DEBUG)
         self.checkworkspace()
@@ -22,7 +21,7 @@ class upgrade():
             self.info('unable to find directories, trying to run prepare script!')
         else:
             self.info('-connecting to opengear...')
-            self.og=oglogon(ip=self.upinfo['oginfo']['mgmtip'],port=self.upinfo['oginfo']['interface'],logfile=self.path+'/raw.log')
+            self.og=pelogon(ip=self.devinfo['oginfo']['mgmtip'],port=self.devinfo['oginfo']['interface'],logfile=self.path+'/raw.log',og=1)
             self.og.remlogon()
             time.sleep(1)
             if self.og.status=='success' and self.og.vendor=='dell':
@@ -98,18 +97,18 @@ class upgrade():
         """.format(hostname=self.hostname)
         self.dbh.buildretdict(sql)
         if len(self.dbh.retdict)==1:
-            self.upinfo['oginfo']=self.dbh.retdict[0]
+            self.devinfo['oginfo']=self.dbh.retdict[0]
         else:
             self.errors.append('ogerror:unable to get opengear details!')
-            self.upinfo['oginfo']={'error':'unable to get opengear details!'}
+            self.devinfo['oginfo']={'error':'unable to get opengear details!'}
 
     def checkworkspace(self):
         self.info("--Setting up your workspace...")
         if(os.path.exists(self.path)):
-            if os.path.isfile(self.upinfofile):
-                f=open(self.upinfofile,'r')
+            if os.path.isfile(self.devinfofile):
+                f=open(self.devinfofile,'r')
                 try:
-                    self.upinfo=json.loads(f.read())
+                    self.devinfo=json.loads(f.read())
                 except:
                     self.status='prepare'
             else:

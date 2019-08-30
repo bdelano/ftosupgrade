@@ -2,6 +2,7 @@ import os
 import logging
 import json
 from peconnect import *
+from myutilities import *
 
 class backout():
     def __init__(self,**kw):
@@ -10,29 +11,28 @@ class backout():
         self.binfile=kw['options'].binfile
         self.options=kw['options']
         self.path=os.getcwd()+'/'+self.hostname
-        self.upinfofile=self.path+'/devinfo.json'
+        self.devinfofile=self.path+'/devinfo.json'
         self.errors=list()
-        self.upinfo={}
+        self.devinfo={}
         logging.basicConfig(filename=self.path+'/raw.log',level=logging.DEBUG)
         self.checkworkspace()
         self.info('--connecting to device')
         self.pe=pelogon(ip=self.hostname,binfile=self.binfile,logfile=self.path+'/raw.log')
-        self.pe.devinfo=self.upinfo['devinfo']
         self.info('---restoring boot config')
-        self.pe.restoreBoot()
-        self.upinfo['status']='backed out'
-        f=open(self.upinfofile,'w')
-        self.info('--writing %s...' % self.upinfofile)
-        f.write(json.dumps(self.upinfo))
+        self.pe.restoreBoot(self.devinfo['bootinfo']['primary']['slot'],self.devinfo['bootinfo']['secondary']['slot'])
+        self.devinfo['status']='backed out'
+        f=open(self.devinfofile,'w')
+        self.info('--writing %s...' % self.devinfofile)
+        f.write(json.dumps(self.devinfo))
         self.info('complete')
 
     def checkworkspace(self):
         self.info("--Setting up your workspace...")
         if(os.path.exists(self.path)):
-            if os.path.isfile(self.upinfofile):
-                f=open(self.upinfofile,'r')
+            if os.path.isfile(self.devinfofile):
+                f=open(self.devinfofile,'r')
                 try:
-                    self.upinfo=json.loads(f.read())
+                    self.devinfo=json.loads(f.read())
                 except:
                     self.status='prepare'
             else:
@@ -43,23 +43,3 @@ class backout():
 
     def info(self,msg):
         print(str(msg))
-
-
-    def setupworkspace(self):
-        self.info("--Setting up your workspace...")
-        if(os.path.exists(self.path)):
-            if os.path.isfile(self.upinfofile):
-                f=open(self.upinfofile,'r')
-                try:
-                    self.upinfo=json.loads(f.read())
-                except:
-                    logging.warning('unable to read the upinfofile:%s' % self.upinfofile)
-                    self.errors.append('unable to read the upinfofile:%s' % self.upinfofile)
-                    self.upinfo={}
-        else:
-            self.info("--creating necessary directories...")
-            os.mkdir(self.path)
-            os.mkdir(self.path+'/pre')
-            os.mkdir(self.path+'/post')
-        #print(os.path.isdir("/home/el"))
-        #print(os.path.exists("/home/el/myfile.txt"))
