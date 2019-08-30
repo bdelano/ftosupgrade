@@ -8,6 +8,8 @@ from termcolor import colored
 from terminaltables import AsciiTable
 from prepare import *
 from upgrade import *
+from backout import *
+VERSION='.01BETA'
 
 class textTools:
     def __init__(self,msg):
@@ -20,7 +22,7 @@ class main():
         parser.add_option("-d", "--devices", dest="devices",
             help="List of devices to upgrade separated by a ','", default=None)
         parser.add_option("-t", "--type",dest="type",
-            help="This can be prepare,upgrade", default='prepare')
+            help="This can be prepare,upgrade, or backout", default='prepare')
         parser.add_option("-b","--binfile",dest="binfile",
             help="The name of the binary file you are using for the upgrade e.g. FTOS-SK-9.14.1.0.bin")
         parser.add_option("-f", "--force", dest="noforce",
@@ -35,12 +37,13 @@ class main():
                 for d in dl:
                     if options.type=='prepare':
                         p=prepare(hostname=d,options=options)
+                    elif options.type=='backout':
+                        b=backout(hostname=d,options=options)
                     elif options.type=='upgrade':
-                        u=upgrade(hostname=d,options=options)
-                        if u.status=='prepare':
-                            p=prepare(hostname=d,options=options)
-                            if p.status=='success':
-                                u=upgrade(hostname=d,options=options)
+                        p=prepare(hostname=d,options=options)
+                        if len(p.errors)<1:
+                            u=upgrade(hostname=d,options=options)
+
 
             else:
                 print("please create a directory called ftosupgrade:\nmkdir ftosupgrade\nchange to that directory\ncd ftosupgrade\nand re-run this command")
