@@ -7,13 +7,15 @@ This is specific to our company build so it most likely will not work out of the
 - [Distributing your binary files](#distributing-your-binary-files)   
    - [notes](#notes)   
 - [Running the upgrade script](#running-the-upgrade-script)   
-   - [Prepare the switches for upgrade](#prepare-the-switches-for-upgrade)   
-   - [Upgrade process](#upgrade-process)   
-- [Backout /  Downgrade](#backout-downgrade)   
+   - [Prepare the Switches for Upgrade](#prepare-the-switches-for-upgrade)   
+   - [Upgrade the Switch](#upgrade-the-switch)   
+   - [Backout /  Downgrade](#backout-downgrade)   
+- [To Do](#to-do)   
 
 <!-- /MDTOC -->
 ## Intallation
 Its probably easiest to just install this in a virtual environment so as not to mess with the current modules
+* use a *nix* box, tested on ubuntu 16.4
 * create environment `virtualenv ftosupgrade`
 * then run `source ftosupgrade/bin/activate`
 * add the required python modules
@@ -25,7 +27,7 @@ Its probably easiest to just install this in a virtual environment so as not to 
   * terminaltables
 * clone this repository
 * add a `localauth.py` file with the necessary information (see example file)
-* add the path to the repository to your users path
+* add the path to the repository to your users path or setup a link
 
 ## Distributing your binary files
 * update `uploadbin.py` to accomodate your list of hostnames
@@ -33,11 +35,11 @@ Its probably easiest to just install this in a virtual environment so as not to 
 * run `updatebin.py` to push your code version up
 
 ### notes
-* assumes your binary files are in a directory called '/tftpboot/Dell/', you can change this in `peconnect.py`
+* assumes your binary files are in a directory called '/tftpboot/Dell/', you can change this in `uploadbin.py`
 
 ## Running the upgrade script
 
-### Prepare the switches for upgrade
+### Prepare the Switches for Upgrade
 * opengear connectivity will be validated and will be listed in the prepare output
 * prompt will be compared between opengear and ssh to device
 * build directories to support pre,post and log files
@@ -48,16 +50,16 @@ Its probably easiest to just install this in a virtual environment so as not to 
 * run pre upgrade commands (for diffs)
   * `show alarm |no-more`(fail if any exist)
   * `show vlt br |no-more` (fail if unexpected results)
+  * `show hardware stack-unit 1 unit 0 execute-shell-cmd “ps” |no-more` (fail if status is blocking and port is up)
   * `show int desc |no-more`
   * `show run |no-more`
   * `show logging |no-more`
-  * `show hardware stack-unit 1 unit 0 execute-shell-cmd “ps” |no-more`
   * `show lldp nei |no-more`
 * all command output will be copied to a file in the `~/ftosupgrade/<devicename>/<PRE>` directory
 * all raw output will sent to `<devicename>/raw.log`
 * a JSON file `<devicename>/devinfo.json` will be created to track history of the upgrade used for any necessary stateful information
 
-### Upgrade process
+### Upgrade the Switch
 * check if the switch is already upgraded
 * login to switch via opengear connection
 * run the `reload` command acknowledge and wait for prompt
@@ -67,6 +69,13 @@ Its probably easiest to just install this in a virtual environment so as not to 
 * look for any errors/anomolies (this needs to be defined)
 * esclate if any issues
 
-## Backout /  Downgrade
+### Backout /  Downgrade
 * restore previous boot config
 * reload device?
+
+## To Do
+* reload a switch with the upgrade script to get the right expects sorted
+* setup post checks
+* figure out how to diff the pre/post files so it makes sense to the user
+* test full upgrade
+* re-rwrite the binary upload script to use pexpect so no dependence on paramiko
