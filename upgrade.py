@@ -1,40 +1,118 @@
-#!/opt/local/scripts/python/ftosupgrade/bin/python2.7
 import os
-import sys          # for handling arguments
-import re            # for regular expressions
-import time            # for sleep and time related functions
-from optparse import OptionParser
-from termcolor import colored
-from terminaltables import AsciiTable
-from prepare import *
+import logging
+import json
+from peconnect import *
+from mysql import *
+from ogconnect import *
 
-
-def main():
-    parser = OptionParser("usage: ftupgrade <options>")
-    parser.add_option("-d", "--devices", dest="devices",
-        help="List of devices to upgrade separated by a ','", default=None)
-    parser.add_option("-t", "--type",dest="type",
-        help="This can be prepare,upgrade", default='prepare')
-    parser.add_option("-b","--binfile",dest="binfile",
-        help="The name of the binary file you are using for the upgrade e.g. FTOS-SK-9.13.0.2.bin")
-    parser.add_option("-f", "--force", dest="noforce",
-        action="store_false",
-        help="use -f to force scripts to run", default=True)
-    (options, args) = parser.parse_args()
-
-    if options.devices is not None and options.binfile is not None:
-        dl = os.getcwd().split('/')
-        if dl[-1]=='ftosupgrade':
-            dl=options.devices.split(",")
-            if options.type=='prepare':
-                for d in dl:
-                    p=prepare(hostname=d,options=options)
+class upgrade():
+    def __init__(self,**kw):
+        self.hostname=kw['hostname']
+        self.info("-working on %s..." % self.hostname)
+        self.binfile=kw['options'].binfile
+        self.options=kw['options']
+        self.path=os.getcwd()+'/'+self.hostname
+        self.upinfofile=self.path+'/devinfo.json'
+        self.errors=list()
+        self.upinfo={}
+        self.status='fail'
+        logging.basicConfig(filename=self.path+'/raw.log',level=logging.DEBUG)
+        self.checkworkspace()
+        if self.status=='prepare':
+            self.info('unable to find directories, trying to run prepare script!')
         else:
-            print("please create a directory called ftosupgrade:\nmkdir ftosupgrade\nchange to that directory\ncd ftosupgrade\nand re-run this command")
-    else:
-        print("Please specify at least 1 device and a binary file name")
-        parser.print_help()
+            self.info('-connecting to opengear...')
+            self.og=oglogon(ip=self.upinfo['oginfo']['mgmtip'],port=self.upinfo['oginfo']['interface'],logfile=self.path+'/raw.log')
+            self.og.remlogon()
+            time.sleep(1)
+            if self.og.status=='success' and self.og.vendor=='dell':
+                self.info('-connected, reloading device...')
+                self.og.e.sendline('dir |no-more')
+                self.og.e.logfile=sys.stdout
+                self.og.waitforstream()
+                self.og.e.sendline('exit')
+                self.og.waitforstream()
+                self.og.e.sendline()
+                self.og.message='login'
+                self.og.remlogon()
+                print(self.og.status)
+                print(self.og.message)
+                self.info('data:'+self.og.wfsll)
+            else:
+                self.errors.append('unable to login to opengear:%s' % og.message)
+                self.info('unable to login to opengear!','error')
+            self.og.e.terminate()
+        self.info('finished')
+
+    def runpostscripts(self):
+        self.info('---running POST commands')
+        precommands=[
+        {'cmd':'show alarm |no-more','fn':'shalarm'},
+        {'cmd':'show vlt br |no-more','fn':'shvlt'},
+        {'cmd':'show int desc |no-more','fn':'shintdescr'},
+        {'cmd':'show lldp nei |no-more','fn':'shlldp'}
+        ]
+        for o in precommands:
+            f=open(self.path+'/post/'+o['fn']+'.cmd','w')
+            self.info('----running command: %s...' % o['cmd'])
+            cmdres=self.pe.getCommand(o['cmd'])
+            f.write(cmdres)
+            f.close()
+            if o['fn']=='shvlt':
+                self.checkvlt(cmdres)
+            elif o['fn']=='shalarm':
+                self.checkalarms(cmdres)
 
 
-if __name__ == '__main__':
-    main()
+            #still need to write something to test a couple of comands
+
+    def checkalarms(self,cmdres):
+        if 'No minor alarms' not in cmdres:
+            self.errors.append('Minor alarms found please see: shalarm.cmd')
+        if  'No major alarms' not in cmdres:
+            self.errors.append('Major alarms found please see: shalarm.cmd')
+
+    def checkvlt(self,cmdres):
+        resdict={}
+        for l in cmdres.split("\r\n"):
+            if ':' in l:
+                (k,v)=l.split(':',1)
+                resdict[k.rstrip().lstrip()]=v.lstrip().lower()
+        keys=['ICL Link Status','HeartBeat Status','VLT Peer Status']
+        for chk in keys:
+            if resdict[chk] != 'up':
+                self.errors.append('vlterror:%s is not up (%s)' % (chk,resdict[chk]))
+
+
+    def info(self,msg):
+        print(str(msg))
+
+    def getOGdetails(self):
+        self.info('--getting opengear details...')
+        self.dbh=mysql()
+        sql="""
+        select d.label,d.mgmtip,l.interface
+        from layer2 as l join devices as d on d.id=l.hostid
+        where d.label like '%oob'
+        and l.description like '{hostname}'
+        """.format(hostname=self.hostname)
+        self.dbh.buildretdict(sql)
+        if len(self.dbh.retdict)==1:
+            self.upinfo['oginfo']=self.dbh.retdict[0]
+        else:
+            self.errors.append('ogerror:unable to get opengear details!')
+            self.upinfo['oginfo']={'error':'unable to get opengear details!'}
+
+    def checkworkspace(self):
+        self.info("--Setting up your workspace...")
+        if(os.path.exists(self.path)):
+            if os.path.isfile(self.upinfofile):
+                f=open(self.upinfofile,'r')
+                try:
+                    self.upinfo=json.loads(f.read())
+                except:
+                    self.status='prepare'
+            else:
+                self.status='prepare'
+        else:
+            self.status='prepare'

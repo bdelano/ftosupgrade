@@ -16,7 +16,7 @@ class IgnoreKeys(MissingHostKeyPolicy):
     def missing_host_key(self, client, hostname, key):
         return
 
-class peconnect:
+class pelogon:
     def __init__(self,**kw):
         self.user=tcrc.creds['joyent'].username
         self.binfile=None
@@ -63,9 +63,18 @@ class peconnect:
             self.e.sendline(self.binfile)
             self.e.expect(self.prompt,timeout=300)
             self.getbootstatus()
+        if self.bfsw==self.devinfo['bootinfo']['secondary']['version']:
+            self.addConfig([
+                'boot system stack-unit 1 primary system: %s:' % altslot[curprimary],
+                'boot system stack-unit 1 secondary system: %s:' % curprimary
+            ])
+        else:
+            self.errors.append('version %s does not match the binary %s' (self.devinfo['bootinfo']['secondary']['version'],self.bfsw))
+
+    def restoreBoot(self):
         self.addConfig([
-        'boot system stack-unit 1 primary system: %s:' % altslot[curprimary],
-        'boot system stack-unit 1 secondary system: %s:' % curprimary
+            'boot system stack-unit 1 primary system: %s:' % self.devinfo['bootinfo']['primary']['slot'],
+            'boot system stack-unit 1 secondary system: %s:' % self.devinfo['bootinfo']['secondary']['slot']
         ])
 
     def checkbinfile(self):
