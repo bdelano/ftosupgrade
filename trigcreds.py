@@ -1,3 +1,15 @@
+"""Information regarding source....
+
+The following functions were pulled as is from the trigger automation library
+https://github.com/trigger/trigger
+
+"""
+
+__author__ = 'Jathan McCollum, Mark Thomas, Michael Shields'
+__maintainer__ = 'Jathan McCollum'
+__email__ = 'jmccollum@salesforce.com'
+__copyright__ = 'Copyright 2006-2012, AOL Inc.; 2013 Salesforce.com'
+
 import pwd
 import os
 import sys
