@@ -1,6 +1,7 @@
 import pwd
 import os
-from os.path import expanduser
+import sys
+from os.path import expanduser, exists
 from collections import namedtuple
 from base64 import decodestring, encodestring
 from cryptography.hazmat.backends.openssl import backend as openssl_backend
@@ -38,13 +39,17 @@ def _perl_pack_Hstar_old(s):
 
 class getcreds():
     def __init__(self):
-        self.file_name=expanduser("~")+str('/.tacacsrc')
-        self.userinfo = pwd.getpwuid(os.getuid())
-        self.username = self.userinfo.pw_name
-        self.user_home = self.userinfo.pw_dir
-        self.key = self._get_key_old('/etc/trigger/.tackf')
-        self.rawdata = self._read_file_old()
-        self.creds = self._parse_old()
+        if exists(expanduser("~")+str('/.tacacsrc')):
+            self.file_name=expanduser("~")+str('/.tacacsrc')
+            self.userinfo = pwd.getpwuid(os.getuid())
+            self.username = self.userinfo.pw_name
+            self.user_home = self.userinfo.pw_dir
+            self.key = self._get_key_old('/etc/trigger/.tackf')
+            self.rawdata = self._read_file_old()
+            self.creds = self._parse_old()
+        else:
+            print("Please run gong to add your device credentials!")
+            sys.exit()
 
 
     def _decrypt_old(self, s):
