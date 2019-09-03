@@ -90,7 +90,6 @@ To use the script login to an appropriate noctool box and create a directory cal
   * `ftosupgrade -d iad301-tor01-e02-stg -b FTOS-SK-9.14.1.0.bin -t backout` At the moment this just resets the boot order, you will need to reload manually as this assumes there was some issue
 
 ## To Do
-* add module for messaging (handle errors and info)
 * add catch for errors when switch doesn't like submitted command
 * create smart diffs for things like `show hardeware stack..` as it looks like the output changes between versions
 * make uploadbin.py more user friendly and available to all users

@@ -7,33 +7,31 @@ from peconnect import *
 
 class uploadbin:
     def __init__(self,**kw):
-        self.hostname=kw['hostname']
-        self.errors=list()
-        self.binfile=kw['binfile']
-        self.binfilepath=kw['binfilepath']
+        self.m=kw['message']
+        self.hostname=self.m.hostname
+        self.binfile=self.m.binfile
+        self.binfilepath=self.m.binfilepath
         self.multi=False
         self.silent=False
         if kw.has_key('multi'): self.multi=True
         if self.multi: self.silent=True
         self.path=os.getcwd()+'/'+self.hostname
-        self.logfile=self.path+'/raw.log'
-        print("uploading %s to %s..." % (self.binfile,self.hostname))
+        self.m.info("uploading %s to %s..." % (self.binfile,self.hostname))
         if kw.has_key('logfile'): self.logfile=kw['logfile']
         self.uploadinfo={}
-        if self.multi: logging.basicConfig(filename=self.logfile,level=logging.DEBUG)
-        self.pe=pelogon(ip=self.hostname,debug=1,binfile=self.binfile,binfilepath=self.binfilepath,silent=silent)
-        self.checkbinfile()
+        self.pe=pelogon(silent=self.silent,message=self.m)
+        if self.multi: self.checkbinfile()
         if self.uploadinfo['binfilestatus'].has_key('error'):
             ferror=self.uploadinfo['binfilestatus']['error']
             if 'local' in ferror:
-                logging.critical(ferror)
+                self.m.warning(ferror)
             else:
-                logging.info(self.uploadinfo['binfilestatus']['error'])
+                self.m.warning(self.uploadinfo['binfilestatus']['error'])
                 self.pe.scp()
                 self.checkbinfile()
-                logging.info(self.uploadinfo['binfilestatus'])
+                self.m.info(self.uploadinfo['binfilestatus'])
         else:
-            logging.info(self.uploadinfo['binfilestatus'])
+            self.m.info(self.uploadinfo['binfilestatus'])
         self.pe.exit()
         if self.multi: os._exit(0)
 
@@ -53,5 +51,3 @@ class uploadbin:
                 self.uploadinfo['binfilestatus']={'error':'cannot find local file %s%s' % (BINFILEPATH,self.binfile)}
         else:
             self.uploadinfo['binfilestatus']={'error':'binfile does not match expected format:%s' % self.binfile}
-        if self.uploadinfo['binfilestatus'].has_key('error'):
-            self.errors.append(self.uploadinfo['binfilestatus']['error'])

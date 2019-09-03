@@ -1,7 +1,6 @@
 from __future__ import print_function, unicode_literals
 import sys
 import pexpect
-import logging
 import re
 import time
 from os import path
@@ -10,26 +9,21 @@ from localauth import *
 class pelogon:
     def __init__(self,**kw):
         self.user=tcrc.creds['joyent'].username
-        self.binfile=None
-        self.binfilepath=None
-        if kw.has_key('binfile'):
-            self.binfile=kw['binfile']
-        if kw.has_key('binfilepath'):
-            self.binfilepath=kw['binfilepath']
-        self.logfile='pexpect.log'
-        if kw.has_key('logfile'): self.logfile=kw['logfile']
-        self.debug=None
+        self.m=kw['message']
+        self.logfile='pecommands.log'
+        if self.m.peclog: self.logfile=self.m.peclog
         self.prompt="#"
         self.cprompt="#"
-        self.errors=list()
         self.bootinfo={}
-        if kw.has_key('debug'): self.debug=kw['debug']
         self.ip=None
-        if ':' in kw['ip']:
-            ipp=kw['ip'].split(':')
-            self.ip='%s -p 1000%s' % (ipp[0],ipp[1])
+        if kw.has_key('ip'):
+            if ':' in kw['ip']:
+                ipp=kw['ip'].split(':')
+                self.ip='%s -p 1000%s' % (ipp[0],ipp[1])
+            else:
+                self.ip=kw['ip']
         else:
-            self.ip=kw['ip']
+            self.ip=self.m.hostname
 
         if kw.has_key('customer'):
             self.customer=kw['customer']
@@ -43,9 +37,8 @@ class pelogon:
         self.wfsll=None
         self.ogu='netops'
         self.silent=False
-        if kw.has_key('silent'):self.silent=True
+        if kw.has_key('silent'):self.silent=kw['silent']
         self.ogp=og_dict[self.customer][self.ogu]
-        if kw.has_key('debug'): self.debug=kw['debug']
         if kw.has_key('port'):
             self.port=kw['port']
             self.ogu=self.ogu+':'+str(self.port)
@@ -89,7 +82,7 @@ class pelogon:
                 print("newline sent expecting response...")
                 resp=self.e.expect(exp_list,timeout=5)
                 print("resp:"+str(resp))
-        #self.info("login to opengear complete")
+        self.m.debug("login to opengear complete")
         result=None
         if resp==1:
             result=['fail','invalid port',None]
@@ -109,6 +102,7 @@ class pelogon:
             result=['fail','timeout to %s@%s' % (self.u,self.ip),None]
         else:
             result=['fail','unable to logon to %s@%s' % (self.u,self.ip),None]
+            self.m.critical('unable to logon to %s@%s' % (self.u,self.ip))
         (self.status,self.message,self.vendor)=result
 
     def remlogon(self):
@@ -166,13 +160,15 @@ class pelogon:
             tresp=self.e.expect([self.prompt,'Error','error','Invalid','not found'])
             if tresp>0:
                 self.status='fail'
-                self.message=tresp
+                self.message=self.e.before
             else:
                 self.status='success'
                 self.message='all logged in!'
         else:
             self.status='fail'
             self.message='vendor not found'
+        if self.status=='fail':
+            self.m.critical(self.message)
 
     def waitforstream(self):
         """
@@ -185,7 +181,7 @@ class pelogon:
                 # default timeout for pexpect-spawn object is 30s
                 data=self.e.read_nonblocking(1024, timeout=30)
                 self.wfsdata=self.wfsdata+data
-                logging.info("wfsdata\nSTART:%s:END" % data)
+                self.m.debug("wfsdata\nSTART:%s:END" % data)
                 time.sleep(1)
             # continue reading data from 'session' until the thread is stopped
             except pexpect.TIMEOUT:
@@ -229,9 +225,6 @@ class pelogon:
                 (k,v)=l.split(':',1)
                 self.versioninfo[k.rstrip().lstrip()]=v.lstrip().lower()
 
-    def info(self,msg):
-        print(str(msg))
-        logging.debug(str(msg))
 
     def getbootinfo(self):
         """
@@ -243,7 +236,7 @@ class pelogon:
         if 'FLASH BOOT' in sbs:
             sbsl=sbs.split("\r\n")
         else:
-            self.info('show boot system stack-unit 1 failed, waiting 5 and trying again...')
+            self.m.warning('show boot system stack-unit 1 failed, waiting 5 and trying again...')
             time.sleep(5)
             sbs=self.getCommand('show boot system stack-unit 1')
             sbsl=sbs.split("\r\n")
@@ -315,12 +308,12 @@ class pelogon:
         output=self.e.before
         return output
 
-    def runchecks(self,**kw):
+    def runchecks(self,type):
         """
         runs a list of commands and adds them to either a pre or post directory
         certain command output will get analyzed for errors
         """
-        self.info('---running %s commands' % kw['type'])
+        self.m.info('---running %s commands' % type)
         su=1;
         if re.match("^8.*",self.bootinfo['primary']['version']):
             su=0
@@ -334,8 +327,8 @@ class pelogon:
             {'cmd':'show lldp nei |no-more','fn':'shlldp'}
         ]
         for o in commands:
-            f=open(kw['path']+'/'+kw['type']+'/'+o['fn']+'.cmd','w')
-            self.info('----running command: %s...' % o['cmd'])
+            f=open(self.m.devpath+type+'/'+o['fn']+'.cmd','w')
+            self.m.info('----running command: %s...' % o['cmd'])
             cmdres=self.getCommand(o['cmd'])
             f.write(cmdres)
             f.close()
@@ -354,20 +347,18 @@ class pelogon:
             cols=l.lstrip().split()
             if len(cols)>7:
                 (port,link,state)=(cols[0]+cols[1],cols[2].lower(),cols[7].lower())
-                #self.info("p:%s l:%s s:%s" % (port,link,state))
+                self.m.debug("p:%s l:%s s:%s" % (port,link,state))
                 if state=='block' and state=='up':
-                    self.info("checkhwstack: p:%s l:%s s:%s" % (port,link,state))
-                    self.errors.append('stperror: %s %s %s' % (port,link,state))
-            #self.info('col'+cols[0])
+                    self.m.critical('stperror: %s %s %s' % (port,link,state))
 
     def checkalarms(self,cmdres):
         """
         checks the shalarm command to see if any exist
         """
         if 'No minor alarms' not in cmdres:
-            self.errors.append('Minor alarms found please see: shalarm.cmd')
+            self.m.critical('Minor alarms found please see: shalarm.cmd')
         if  'No major alarms' not in cmdres:
-            self.errors.append('Major alarms found please see: shalarm.cmd')
+            self.m.critical('Major alarms found please see: shalarm.cmd')
 
     def checkvlt(self,cmdres):
         """
@@ -381,7 +372,7 @@ class pelogon:
         keys=['ICL Link Status','HeartBeat Status','VLT Peer Status']
         for chk in keys:
             if resdict[chk] != 'up':
-                self.errors.append('vlterror:%s is not up (%s)' % (chk,resdict[chk]))
+                self.m.critical('vlterror:%s is not up (%s)' % (chk,resdict[chk]))
 
 
     def scp(self):
@@ -390,8 +381,8 @@ class pelogon:
         """
         quiet=''
         if self.silent: quiet=' -q'
-        self.sshcmd="scp{quiet} -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=no -o GSSAPIAuthentication=no -o CheckHostIP=no  -o UserKnownHostsFile=/dev/null {binfilepath} {user}@{ip}:{binfile}".format(quiet=quiet,binfilepath=self.binfilepath+self.binfile,user=self.user,ip=self.ip,binfile=self.binfile)
-        logging.info("starting upload of %s" % self.binfilepath+self.binfile)
+        self.sshcmd="scp{quiet} -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=no -o GSSAPIAuthentication=no -o CheckHostIP=no  -o UserKnownHostsFile=/dev/null {binfilepath} {user}@{ip}:{binfile}".format(quiet=quiet,binfilepath=self.m.binfilepath+self.m.binfile,user=self.user,ip=self.ip,binfile=self.m.binfile)
+        self.m.info("starting upload of %s" % self.m.binfilepath+self.m.binfile)
         e=pexpect.spawn(self.sshcmd)
         e.logfile = None
         e.expect('assword.*')
@@ -399,6 +390,6 @@ class pelogon:
         if not self.silent: e.logfile = sys.stdout
         e.expect(pexpect.EOF,timeout=None)
         if 'scp:' in e.before:
-            self.errors.append('unable to upload file to %s: %s' % (self.ip,e.before))
+            self.m.critical('unable to upload file to %s: %s' % (self.ip,e.before))
         else:
-            logging.info("upload complete!")
+            self.m.info("upload complete!")
