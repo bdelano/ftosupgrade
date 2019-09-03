@@ -1,23 +1,26 @@
 import os
 import logging
 import json
+from upload import *
 from peconnect import *
 from mysql import *
 
 class prepare():
     def __init__(self,**kw):
         self.hostname=kw['hostname']
-        self.info("\n----------------\npreparing %s for upgrade..." % self.hostname)
+        self.info("----------------\npreparing %s for upgrade..." % self.hostname)
         self.binfilepath=kw['binfilepath']
         self.binfile=kw['options'].binfile
         self.options=kw['options']
         self.path=os.getcwd()+'/'+self.hostname
+        self.log=self.path+'/raw.log'
         self.devinfofile=self.path+'/devinfo.json'
         self.errors=list()
         self.devinfo={}
+        self.bfsw=''
         self.setupworkspace()
         open(self.path+'/raw.log','w')
-        logging.basicConfig(filename=self.path+'/raw.log',level=logging.DEBUG)
+        logging.basicConfig(filename=self.log,level=logging.DEBUG)
         if self.devinfo.has_key('status') and self.devinfo['status']=='success' and self.options.noforce:
             self.info("Looks like this device has already been setup")
             self.info("please delete %s to force!" % self.devinfofile)
@@ -27,20 +30,24 @@ class prepare():
             self.info('--connecting to device')
             self.pe=pelogon(ip=self.hostname,logfile=self.path+'/raw.log')
             self.checkbinfile()
-            self.version=self.pe.versioninfo['Dell Application Software Version']
-            if self.devinfo['oginfo'].has_key('mgmtip'):
-                if self.pe.prompt != self.og.prompt:
-                    self.errors.append('The prompt on the opengear does not match! Please investigate!')
-            self.runprescripts()
-            self.info('---updating boot info, this may take a little while...')
-            self.updateBoot()
-            if len(self.pe.errors)>0 or len(self.errors)>0:
-                self.info('---found errors restoring config boot order!')
-                self.pe.restoreBoot(self.devinfo['bootinfo']['primary']['slot'],self.devinfo['bootinfo']['secondary']['slot'])
-                for e in self.pe.errors: self.uperrors.append('di'+str(e))
+            if self.devinfo['binfilestatus'].has_key('error'):
+                self.info(self.devinfo['binfilestatus']['error'])
+            else:
+                self.version=self.pe.bootinfo['primary']['version']
+                if self.devinfo['oginfo'].has_key('mgmtip'):
+                    if self.pe.prompt != self.og.prompt:
+                        self.errors.append('The prompt on the opengear does not match! Please investigate!')
+                self.pe.runchecks(path=self.path,type='pre')
+                self.info('---updating boot info, this may take a little while...')
+                self.updateBoot()
+                if len(self.pe.errors)>0 or len(self.errors)>0:
+                    self.info('---found errors restoring config boot order!')
+                    self.pe.setBoot(self.devinfo['bootinfo']['primary']['slot'],self.devinfo['bootinfo']['secondary']['slot'])
+                    for e in self.pe.errors: self.uperrors.append('di'+str(e))
 
             #closing connection
             self.pe.e.terminate()
+            self.errors=self.errors+self.pe.errors
             if len(self.errors)>0:
                 self.devinfo['status']='fail'
                 self.info('preparation failed because of the following errors!')
@@ -54,8 +61,7 @@ class prepare():
                 self.info('--writing %s...' % self.devinfofile)
                 f.write(json.dumps(self.devinfo))
                 self.info('preparation completed successfully feel free to upgrade')
-
-            #finishing
+        print('----------------')
 
 
     def checkOG(self):
@@ -69,67 +75,40 @@ class prepare():
             if self.og.status != 'success':
                 self.errors.append('og:'+str(self.og.message))
             else:
-                self.og.e.sendline('show version')
-                self.og.waitforstream()
-                self.og.prompt=self.og.wfsll
-                self.og.e.sendline('exit')
-                self.og.e.expect('.*')
+                self.og.getbootinfo()
             self.og.e.terminate()
 
-    def runprescripts(self):
-        self.info('---running PRE commands')
-        su=1;
-        if re.match("^8.*",self.version):
-            su=0
-        precommands=[
-            {'cmd':'show alarm |no-more','fn':'shalarm'},
-            {'cmd':'show vlt br |no-more','fn':'shvlt'},
-            {'cmd':'show int desc |no-more','fn':'shintdescr'},
-            {'cmd':'show run |no-more','fn':'shrun'},
-            {'cmd':'show logging |no-more','fn':'shlogging'},
-            {'cmd':'show hardware stack-unit %s unit 0 execute-shell-cmd "ps" |no-more' % su,'fn':'shhwstack'},
-            {'cmd':'show lldp nei |no-more','fn':'shlldp'}
-        ]
-        for o in precommands:
-            f=open(self.path+'/pre/'+o['fn']+'.cmd','w')
-            self.info('----running command: %s...' % o['cmd'])
-            cmdres=self.pe.getCommand(o['cmd'])
-            f.write(cmdres)
-            f.close()
-            if o['fn']=='shvlt':
-                self.checkvlt(cmdres)
-            elif o['fn']=='shalarm':
-                self.checkalarms(cmdres)
-            elif o['fn']=='shhwstack':
-                self.checkhwstack(cmdres)
+
 
     def updateBoot(self):
-        self.devinfo['bootinfo']=self.pe.getbootinfo()
+        self.devinfo['bootinfo']=self.pe.bootinfo
         curprimary=self.devinfo['bootinfo']['primary']['slot']
         altslot={'A':'B','B':'A'}
+        print(self.devinfo['bootinfo']['secondary']['version'])
+        print(self.devinfo['bootinfo'])
         if self.bfsw==self.devinfo['bootinfo']['secondary']['version']:
-            self.info('--skipping sys flash upgrade as its already in place!')
+            self.info('----skipping sys flash upgrade as its already in place!')
         else:
             self.pe.e.sendline('upgrade sys flash: %s:' % altslot[curprimary])
             self.pe.e.expect("Source file name \[\]:")
             self.pe.e.sendline(self.binfile)
-            self.pe.e.expect(self.pe.prompt,timeout=300)
+            self.pe.e.expect(self.pe.prompt,timeout=None)
             self.devinfo['bootinfo']=self.pe.getbootinfo()
+
         if self.bfsw==self.devinfo['bootinfo']['secondary']['version']:
-            self.pe.addConfig([
-                'boot system stack-unit 1 primary system: %s:' % altslot[curprimary],
-                'boot system stack-unit 1 secondary system: %s:' % curprimary
-            ])
+            self.pe.setBoot(altslot[curprimary],curprimary)
         else:
             self.errors.append('version %s does not match the binary %s' (self.devinfo['bootinfo']['secondary']['version'],self.bfsw))
 
 
     def checkbinfile(self):
+        vrx=re.compile("FTOS-[\w]+-([\d]+\.[\d]+)\.([\d]+\.[\d]+)\.bin")
         self.devinfo['files']=self.pe.getfilelist()
         if self.binfile:
             bfm=vrx.match(self.binfile)
             if bfm:
                 self.bfsw=bfm.group(1)+'('+bfm.group(2)+')'
+                self.devinfo['binswversion']=self.bfsw
                 if path.exists('%s%s' % (self.binfilepath,self.binfile)):
                     if self.devinfo['files'].has_key(self.binfile):
                         binres=self.pe.getCommand('verify md5 flash://%s %s' % (self.binfile,binmd5[self.binfile]))
@@ -138,7 +117,12 @@ class prepare():
                         else:
                             self.devinfo['binfilestatus']={'succcess':'binfile (%s) exists' % self.binfile}
                     else:
-                        self.devinfo['binfilestatus']={'error':'binfile (%s) does not exist' % self.binfile}
+                        self.info('binfile does not exist..')
+                        self.info('uploading %s to %s, please be patient...')
+                        u=uploadbin(hostname=self.hostname,binfile=self.binfile,binfilepath=self.binfilepath)
+                        print(json.dumps(u.uploadinfo,indent=4))
+                        self.devinfo['binfilestatus']=u.uploadinfo['binfilestatus']
+                        #self.devinfo['binfilestatus']={'error':'binfile (%s) does not exist' % self.binfile}
                 else:
                     self.devinfo['binfilestatus']={'error':'cannot find local file %s%s' % (self.binfilepath,self.binfile)}
             else:
@@ -148,33 +132,7 @@ class prepare():
 
 
             #still need to write something to test a couple of comands
-    def checkhwstack(self,cmdres):
-        for l in cmdres.split("\r\n"):
-            cols=l.lstrip().split()
-            if len(cols)>7:
-                (port,link,state)=(cols[0]+cols[1],cols[2].lower(),cols[7].lower())
-                #self.info("p:%s l:%s s:%s" % (port,link,state))
-                if state=='block' and state=='up':
-                    self.info("p:%s l:%s s:%s" % (port,link,state))
-                    self.errors.append('stperror: %s %s %s' % (port,link,state))
-            #self.info('col'+cols[0])
 
-    def checkalarms(self,cmdres):
-        if 'No minor alarms' not in cmdres:
-            self.errors.append('Minor alarms found please see: shalarm.cmd')
-        if  'No major alarms' not in cmdres:
-            self.errors.append('Major alarms found please see: shalarm.cmd')
-
-    def checkvlt(self,cmdres):
-        resdict={}
-        for l in cmdres.split("\r\n"):
-            if ':' in l:
-                (k,v)=l.split(':',1)
-                resdict[k.rstrip().lstrip()]=v.lstrip().lower()
-        keys=['ICL Link Status','HeartBeat Status','VLT Peer Status']
-        for chk in keys:
-            if resdict[chk] != 'up':
-                self.errors.append('vlterror:%s is not up (%s)' % (chk,resdict[chk]))
 
 
     def info(self,msg):

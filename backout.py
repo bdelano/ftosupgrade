@@ -19,7 +19,7 @@ class backout():
         self.info('--connecting to device')
         self.pe=pelogon(ip=self.hostname,binfile=self.binfile,logfile=self.path+'/raw.log')
         self.info('---restoring boot config')
-        self.pe.restoreBoot(self.devinfo['bootinfo']['primary']['slot'],self.devinfo['bootinfo']['secondary']['slot'])
+        self.pe.setBoot(self.devinfo['bootinfo']['primary']['slot'],self.devinfo['bootinfo']['secondary']['slot'])
         self.devinfo['status']='backed out'
         f=open(self.devinfofile,'w')
         self.info('--writing %s...' % self.devinfofile)

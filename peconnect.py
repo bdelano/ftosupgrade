@@ -4,16 +4,8 @@ import pexpect
 import logging
 import re
 import time
-from paramiko import SSHClient, MissingHostKeyPolicy
-from scp import SCPClient
 from os import path
 from localauth import *
-vrx=re.compile("FTOS-[\w]+-([\d]+\.[\d]+)\.([\d]+\.[\d]+)\.bin")
-#user directory is path.expandser
-
-class IgnoreKeys(MissingHostKeyPolicy):
-    def missing_host_key(self, client, hostname, key):
-        return
 
 class pelogon:
     def __init__(self,**kw):
@@ -24,15 +16,13 @@ class pelogon:
             self.binfile=kw['binfile']
         if kw.has_key('binfilepath'):
             self.binfilepath=kw['binfilepath']
-
         self.logfile='pexpect.log'
         if kw.has_key('logfile'): self.logfile=kw['logfile']
-
-        self.bfsw=None
         self.debug=None
         self.prompt="#"
         self.cprompt="#"
         self.errors=list()
+        self.bootinfo={}
         if kw.has_key('debug'): self.debug=kw['debug']
         self.ip=None
         if ':' in kw['ip']:
@@ -45,7 +35,6 @@ class pelogon:
             self.customer=kw['customer']
         else:
             self.customer='spc'
-
         self.port=None
         self.status=None
         self.message=None
@@ -53,14 +42,17 @@ class pelogon:
         self.wfsdata=''
         self.wfsll=None
         self.ogu='netops'
+        self.silent=False
+        if kw.has_key('silent'):self.silent=True
         self.ogp=og_dict[self.customer][self.ogu]
         if kw.has_key('debug'): self.debug=kw['debug']
         if kw.has_key('port'):
             self.port=kw['port']
             self.ogu=self.ogu+':'+str(self.port)
-
         self.versioninfo={}
-        if kw.has_key('og'):
+        if kw.has_key('scponly'):
+            self.scp()
+        elif kw.has_key('og'):
             self.ogconnect()
         else:
             self.connect()
@@ -69,7 +61,6 @@ class pelogon:
         sshcmd="ssh -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=no -o GSSAPIAuthentication=no -o CheckHostIP=no  -o UserKnownHostsFile=/dev/null -l '"+self.ogu+"' "+self.ip;
         self.e=pexpect.spawn(sshcmd)
         self.e.expect('assword.*')
-        self.info("DEBUG: sending password...")
         self.e.sendline(self.ogp)
         if self.port:
             self.e.expect(".")
@@ -87,7 +78,6 @@ class pelogon:
             pexpect.TIMEOUT,
             pexpect.EOF
         ]
-        self.info("list size:"+str(len(exp_list)))
         resp=self.e.expect(exp_list,timeout=5)
         noresp=True
         while noresp:
@@ -99,8 +89,7 @@ class pelogon:
                 print("newline sent expecting response...")
                 resp=self.e.expect(exp_list,timeout=5)
                 print("resp:"+str(resp))
-        self.info("lresp:%s" % resp)
-        self.info("login to opengear complete")
+        #self.info("login to opengear complete")
         result=None
         if resp==1:
             result=['fail','invalid port',None]
@@ -128,19 +117,16 @@ class pelogon:
         """
         prompt_dict={"juniper":"@[\w].*>","dell":"#","cisco":"#","arista":"#"}
         p=up_dict[self.user]
-        self.e.logfile=None
+        self.e.logfile=open(self.logfile,'a')
         if(prompt_dict.has_key(self.vendor)):
             self.prompt=prompt_dict[self.vendor]
-            #print prompt
             if self.message=='login':
+                self.e.logfile=None
                 self.e.sendline(self.user)
                 resp=self.e.expect(['assword','ogin','>','#'])
-                #print "resp1:%s" % resp
                 if resp==1:
                     self.e.sendline(self.user)
                     resp=self.e.expect(['assword','ogin'])
-                #print "resp2:%s" % resp
-                #time.sleep(1)
                 self.e.sendline(p)
                 self.e.logfile=open(self.logfile,'a')
                 resp=self.e.expect([self.prompt,'[\w]>','Last login','Login succ','Authentication failed','ogin incorrect','pam_open_session: session failure',pexpect.TIMEOUT,pexpect.EOF])
@@ -197,16 +183,19 @@ class pelogon:
         while not stopchecking:
             try:
                 # default timeout for pexpect-spawn object is 30s
-                data=self.e.read_nonblocking(1024, timeout=5)
+                data=self.e.read_nonblocking(1024, timeout=30)
                 self.wfsdata=self.wfsdata+data
+                logging.info("wfsdata\nSTART:%s:END" % data)
                 time.sleep(1)
             # continue reading data from 'session' until the thread is stopped
             except pexpect.TIMEOUT:
-                ls=data.split("\n")
+                self.status='success'
+                ls=data.rstrip().split("\n")
                 self.wfsll=ls[-1]
                 stopchecking=True
             except Exception as exception:
-                print(exception)
+                self.status='fail'
+                self.msg=exception
                 break
 
 
@@ -216,7 +205,6 @@ class pelogon:
         #e.delaybeforesend = 1
         #e.timeout = 15
         self.e.expect('assword.*')
-        self.info("DEBUG: sending password...")
         self.e.sendline(up_dict[self.user])
         resp=self.e.expect(['assword.*','.*\$',pexpect.TIMEOUT,pexpect.EOF,'.*#'])
         self.e.logfile = open(self.logfile, 'a')
@@ -229,43 +217,63 @@ class pelogon:
         elif resp==3:
             raise("ERROR: invalid response")
         else:
-            shver=self.e.sendline('show version | no-more')
-            self.e.expect(self.prompt)
-            svl=self.e.before.split("\r\n")
-            self.cprompt=svl[-1]+'\(conf\)#'
-            self.prompt=ll=svl[-1]+str('#')
-            self.info('ll:'+ll)
-            for l in svl:
-                if ':' in l:
-                    (k,v)=l.split(':',1)
-                    self.versioninfo[k.rstrip().lstrip()]=v.lstrip().lower()
+            self.getbootinfo()
+
+    def getbaseinfo(self):
+        shver=self.getCommand('show version | no-more')
+        svl=shver.split("\r\n")
+        self.cprompt=svl[-1]+'\(conf\)#'
+        self.prompt=ll=svl[-1]+str('#')
+        for l in svl:
+            if ':' in l:
+                (k,v)=l.split(':',1)
+                self.versioninfo[k.rstrip().lstrip()]=v.lstrip().lower()
 
     def info(self,msg):
-        if self.debug:
-            logging.debug(str(msg))
+        print(str(msg))
+        logging.debug(str(msg))
 
     def getbootinfo(self):
-        sbs=self.getCommand('show boot system stack-unit 1').split("\n")
-        cols=sbs[-2].split()
-        bootinfo={}
+        """
+        grabs the boot information from the switch and sets the
+        prompts
+        """
+        sbs=self.getCommand('show boot system stack-unit 1')
+        sbsl=list()
+        if 'FLASH BOOT' in sbs:
+            sbsl=sbs.split("\r\n")
+        else:
+            self.info('show boot system stack-unit 1 failed, waiting 5 and trying again...')
+            time.sleep(5)
+            sbs=self.getCommand('show boot system stack-unit 1')
+            sbsl=sbs.split("\r\n")
+
+        self.cprompt=sbsl[-1]+'\(conf\)#'
+        self.prompt=ll=sbsl[-1]+str('#')
+        cols=sbsl[-2].split()
         aslot={'slot':'A','version':cols[-2]}
         bslot={'slot':'B','version':cols[-1]}
         for slot in [aslot,bslot]:
             if '[boot]' in slot['version']:
                 v=slot['version'].replace('[boot]','')
                 slot['version']=v
-                bootinfo['primary']=slot
+                self.bootinfo['primary']=slot
             else:
-                bootinfo['secondary']=slot
-        return bootinfo
+                self.bootinfo['secondary']=slot
 
-    def restoreBoot(self,primary,secondary):
+    def setBoot(self,primary,secondary):
+        """
+        sets the boot parameters
+        """
         self.addConfig([
             'boot system stack-unit 1 primary system: %s:' % primary,
             'boot system stack-unit 1 secondary system: %s:' % secondary
         ])
 
     def getfilelist(self):
+        """
+        pulls files using the 'dir' command and pushes them into a dictionary
+        """
         files={}
         dirres=self.getCommand('dir | no-more').split("\n")
         for l in dirres:
@@ -275,12 +283,19 @@ class pelogon:
         return files
 
     def exit(self):
+        """
+        exits the device and terminates the ssh connection
+        """
         self.e.sendline('exit')
         self.e.expect(pexpect.EOF)
         self.e.terminate()
         #self.nm.disconnect()
 
     def addConfig(self,cmdlist):
+        """
+        takes a list of commands and adds them to the configuration then saves the configuration
+        """
+
         self.e.sendline('conf t')
         self.e.expect(self.cprompt)
         for cmd in cmdlist:
@@ -292,29 +307,98 @@ class pelogon:
         self.e.expect(self.prompt)
 
     def getCommand(self,cmd):
+        """
+        takes a command and returns the output
+        """
         self.e.sendline(cmd)
         self.e.expect(self.prompt)
         output=self.e.before
         return output
 
+    def runchecks(self,**kw):
+        """
+        runs a list of commands and adds them to either a pre or post directory
+        certain command output will get analyzed for errors
+        """
+        self.info('---running %s commands' % kw['type'])
+        su=1;
+        if re.match("^8.*",self.bootinfo['primary']['version']):
+            su=0
+        commands=[
+            {'cmd':'show alarm |no-more','fn':'shalarm'},
+            {'cmd':'show vlt br |no-more','fn':'shvlt'},
+            {'cmd':'show int desc |no-more','fn':'shintdescr'},
+            {'cmd':'show run |no-more','fn':'shrun'},
+            {'cmd':'show logging |no-more','fn':'shlogging'},
+            {'cmd':'show hardware stack-unit %s unit 0 execute-shell-cmd "ps" |no-more' % su,'fn':'shhwstack'},
+            {'cmd':'show lldp nei |no-more','fn':'shlldp'}
+        ]
+        for o in commands:
+            f=open(kw['path']+'/'+kw['type']+'/'+o['fn']+'.cmd','w')
+            self.info('----running command: %s...' % o['cmd'])
+            cmdres=self.getCommand(o['cmd'])
+            f.write(cmdres)
+            f.close()
+            if o['fn']=='shvlt':
+                self.checkvlt(cmdres)
+            elif o['fn']=='shalarm':
+                self.checkalarms(cmdres)
+            elif o['fn']=='shhwstack':
+                self.checkhwstack(cmdres)
+
+    def checkhwstack(self,cmdres):
+        """
+        checks the shhwstack command for an STP bug
+        """
+        for l in cmdres.split("\r\n"):
+            cols=l.lstrip().split()
+            if len(cols)>7:
+                (port,link,state)=(cols[0]+cols[1],cols[2].lower(),cols[7].lower())
+                #self.info("p:%s l:%s s:%s" % (port,link,state))
+                if state=='block' and state=='up':
+                    self.info("checkhwstack: p:%s l:%s s:%s" % (port,link,state))
+                    self.errors.append('stperror: %s %s %s' % (port,link,state))
+            #self.info('col'+cols[0])
+
+    def checkalarms(self,cmdres):
+        """
+        checks the shalarm command to see if any exist
+        """
+        if 'No minor alarms' not in cmdres:
+            self.errors.append('Minor alarms found please see: shalarm.cmd')
+        if  'No major alarms' not in cmdres:
+            self.errors.append('Major alarms found please see: shalarm.cmd')
+
+    def checkvlt(self,cmdres):
+        """
+        checks VLT to see if anything is in a not 'Up' state
+        """
+        resdict={}
+        for l in cmdres.split("\r\n"):
+            if ':' in l:
+                (k,v)=l.split(':',1)
+                resdict[k.rstrip().lstrip()]=v.lstrip().lower()
+        keys=['ICL Link Status','HeartBeat Status','VLT Peer Status']
+        for chk in keys:
+            if resdict[chk] != 'up':
+                self.errors.append('vlterror:%s is not up (%s)' % (chk,resdict[chk]))
 
 
-
-    def progress(self,filename, size, sent):
-        logging.debug("%s\'s progress: %.2f%%   \r" % (filename, float(sent)/float(size)*100) )
-
-    def scpfile(self):
-        self.info("Trying to upload file: %s%s" % (self.binfilepath,self.binfile))
-        try:
-            ssh=SSHClient()
-            ssh.set_missing_host_key_policy(IgnoreKeys())
-            ssh.connect(hostname=self.ip,username=self.user,password=up_dict[self.user],look_for_keys=False)
-            self.info('connected via scp...')
-            #scp=SCPClient(ssh.get_transport(), progress=self.progress)
-            scp=SCPClient(ssh.get_transport())
-            self.info('attempting upload %s..' % self.binfile)
-            scp.put(BINFILEPATH+self.binfile,self.binfile)
-            self.info('upload complete!')
-            scp.close()
-        except:
-            self.devinfo['binfilestatus']={'uploaderror':'unable to scp file up!'}
+    def scp(self):
+        """
+        uses scp to push a file up to a device
+        """
+        quiet=''
+        if self.silent: quiet=' -q'
+        self.sshcmd="scp{quiet} -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=no -o GSSAPIAuthentication=no -o CheckHostIP=no  -o UserKnownHostsFile=/dev/null {binfilepath} {user}@{ip}:{binfile}".format(quiet=quiet,binfilepath=self.binfilepath+self.binfile,user=self.user,ip=self.ip,binfile=self.binfile)
+        logging.info("starting upload of %s" % self.binfilepath+self.binfile)
+        e=pexpect.spawn(self.sshcmd)
+        e.logfile = None
+        e.expect('assword.*')
+        e.sendline(up_dict[self.user])
+        if not self.silent: e.logfile = sys.stdout
+        e.expect(pexpect.EOF,timeout=None)
+        if 'scp:' in e.before:
+            self.errors.append('unable to upload file to %s: %s' % (self.ip,e.before))
+        else:
+            logging.info("upload complete!")
