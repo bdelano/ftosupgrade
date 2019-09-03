@@ -10,6 +10,7 @@ This is specific to our company build so it most likely will not work out of the
    - [Prepare the Switches for Upgrade](#prepare-the-switches-for-upgrade)   
    - [Upgrade the Switch](#upgrade-the-switch)   
    - [Backout /  Downgrade](#backout-downgrade)   
+- [Tutorial](#tutorial)   
 - [To Do](#to-do)   
 
 <!-- /MDTOC -->
