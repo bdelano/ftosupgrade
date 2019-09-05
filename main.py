@@ -21,7 +21,9 @@ class main():
         parser.add_option("-r", "--region", dest="region",
             help="Any region e.g us-east (for uploads only!)", default=None)
         parser.add_option("-t", "--type",dest="type",
-            help="This can be prepare,upgrade,backout, or upload", default='prepare')
+            help="This can be prepare,upgrade,backout, or upload",
+            choices=['upload','prepare','upgrade','backout'],
+            default='prepare')
         parser.add_option("-b","--binfile",dest="binfile",
             help="The name of the binary file you are using for the upgrade e.g. FTOS-SK-9.14.1.0.bin")
         parser.add_option("-n","--numforks",dest="numforks",
@@ -65,6 +67,7 @@ class main():
                         prepare(message=self.m)
                         if len(self.m.errors[d]['critical'])<1:
                             u=upgrade(hostname=d,options=options,message=self.m)
+
                     self.m.writeerrors()
                     if len(self.m.errors[d]['critical'])>0:
                         self.m.warning('Critical Errors Found, exiting!\nPlease see %s/errors.log for details!' % d)
