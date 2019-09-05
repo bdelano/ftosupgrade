@@ -64,8 +64,8 @@ To use the script login to an appropriate noctool box and create a directory cal
 * Examples
   * `ftosupgrade --help` This will show a help menu with all the options
   * `ftosupgrade -d iad301-tor01-e02-stg,iad301-tor01-e02-stg -b FTOS-SK-9.14.1.0.bin -t upload` uploads binary to 2 switches
-  * `ftosupgrade -d iad301-tor01-e02-stg,iad301-tor01-e02-stg -b FTOS-SK-9.14.1.0.bin -t upload` uploads binary to all switches in ap-southeast
-  * `ftosupgrade -r ap-southeast -b FTOS-SK-9.14.1.0.bin -t prepare` This command will prepare this switch for upgrade
+  * `ftosupgrade -r ap-southeast -b FTOS-SK-9.14.1.0.bin -t upload` uploads binary to all switches in ap-southeast
+  * `ftosupgrade -d iad301-tor01-e02-stg -b FTOS-SK-9.14.1.0.bin -t prepare` This command will prepare this switch for upgrade
   * `ftosupgrade -d iad301-tor01-e02-stg,iad301-tor01-e02-stg -b FTOS-SK-9.14.1.0.bin -t prepare` prepares 2 switches  
   * `ftosupgrade -d iad301-tor01-e02-stg -b FTOS-SK-9.14.1.0.bin -t upgrade` Runs the prepare script and then runs the upgrade script which will reload the devices and do post checks
   * `ftosupgrade -d iad301-tor01-e02-stg -b FTOS-SK-9.14.1.0.bin -t backout` At the moment this just resets the boot order, you will need to reload manually as this assumes there was some issue
@@ -90,4 +90,5 @@ Its probably easiest to just install this in a virtual environment so as not to 
 
 ## To Do
 * need gracefully fail when opengear connect sometimes fails
-* create smart diffs for things like `show hardeware stack..` as it looks like the output changes between versions
+* need to add longer pause before running post commands (trying 30 seconds for now)
+* way of sharing setup class information is hacky and needs to be replaced with inheritance

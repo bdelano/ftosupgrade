@@ -7,6 +7,12 @@ from mysql import *
 
 class prepare():
     def __init__(self,**kw):
+        """
+        get opengear connection from mysql and test connection
+        check that binary file is valid (on device md5 matches)
+        run pre-checks and check for errors
+        update the alternate boot loader and change the configuration so next reload upgrades
+        """
         self.m=kw['message']
         self.hostname=self.m.hostname
         self.m.info("----------------\npreparing %s for upgrade..." % self.hostname,attrs='bold')
@@ -70,6 +76,9 @@ class prepare():
             self.og.e.terminate()
 
     def loaddevinfo(self):
+        """
+        load device state information from json file
+        """
         if os.path.isfile(self.m.devinfofile):
             f=open(self.m.devinfofile,'r')
             try:

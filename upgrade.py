@@ -8,6 +8,11 @@ from mysql import *
 
 class upgrade():
     def __init__(self,**kw):
+        """
+        check if the switch is upgraded, if so re-run post tests
+        if not login to opengear and reload
+        check everything is reachable and run post tests
+        """
         self.m=kw['message']
         self.hostname=self.m.hostname
         self.m.info("-------------\nupgrading %s..." % self.hostname,attrs='bold')
@@ -15,12 +20,12 @@ class upgrade():
         self.upgraded=False
         self.devinfo={}
         self.status='fail'
-        self.test=False
+        self.test=True
         self.loaddevinfo()
         self.pe=pelogon(message=self.m)  #ssh into switch
         #check to see if device is already upgraded
         self.checkupgraded()
-        if self.test: self.upgraded=False # if testing assume its not upgraded already
+        if self.test: self.upgraded=False # if testing pretend its not upgraded already
         if self.status=='prepare':
             msg='ERROR: looks like the workspace is not prepared correctly please re-run the prepare script'
             self.m.critical(msg)
@@ -65,6 +70,8 @@ class upgrade():
                             self.pe=pelogon(message=self.m)
                             self.checkupgraded()
                             if self.test: self.upgraded=True #added for testing
+                            self.m.info('waiting for 30 seconds for interfaces to come back before running post checks...')
+                            time.sleep(30)
                             self.runpostchecks()
                         else:
                             self.m.critical('ERROR: unable to log back into switch!\nPlease re-run the upgrade command as sometimes it takes a little while for tacacs!')
@@ -93,6 +100,10 @@ class upgrade():
         self.m.writedevinfo(self.devinfo)
 
     def runpostchecks(self):
+        """
+        check if device successfully upgraded
+        run post checks and check for errors and run diffs
+        """
         if self.upgraded:
             self.m.info('--Device is now upgraded to %s' % self.curversion)
             self.pe.runchecks('post')
@@ -101,6 +112,9 @@ class upgrade():
             self.m.critical('--Upgrade FAILED: current version (%s) does not match target version (%s)' % (self.curversion,self.devinfo['binswversion']))
 
     def comparechecks(self):
+        """
+        run diffs on commands who's output you wouldn't expect to change
+        """
         self.m.info('--comparing pre/post')
         diffrx=re.compile("^([+-]) (.*)")
         d=difflib.Differ()
@@ -117,12 +131,18 @@ class upgrade():
                     self.m.critical(f+':diffsfound:'+msg)
 
     def checkupgraded(self):
+        """
+        check if current software matches upgrade target
+        """
         self.curversion=self.pe.bootinfo['primary']['version']
         #if self.curversion==self.devinfo['binswversion'] or self.devinfo['upgradestatus']=='upgraded':
         if self.curversion==self.devinfo['binswversion']:
             self.upgraded=True
 
     def loaddevinfo(self):
+        """
+        load device state information from json file
+        """
         if os.path.isfile(self.m.devinfofile):
             f=open(self.m.devinfofile,'r')
             try:

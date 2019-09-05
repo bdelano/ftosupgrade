@@ -10,7 +10,7 @@ from prepare import *
 from upgrade import *
 from backout import *
 from upload import *
-VERSION='1.0BETA'
+VERSION='1.5BETA'
 BINFILEPATH='/tftpboot/Dell/'
 
 class main():
@@ -86,7 +86,10 @@ class main():
 
 
     def makeforks(self):
-        print(self.devlist)
+        """
+        takes a list of devices and forks a separate process for uploading a file
+        """
+        #print(self.devlist)
         for hn in self.devlist:
             print("uploading %s to %s" % (self.options.binfile,hn))
             self.m=setup(hostname=hn,options=self.options,binfilepath=BINFILEPATH,silent=True)
@@ -100,6 +103,9 @@ class main():
         print("all done")
 
     def gethosts(self):
+        """
+        pulls dell tor devices down from database using region
+        """
         dbh=mysql()
         sql="""
         select trignodename
