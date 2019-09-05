@@ -144,7 +144,7 @@ class pelogon:
             elif self.status=='noenable':
                 #print("sending enable...")
                 self.e.sendline('en')
-                enresp=self.e.expect([self.prompt,'assword','top-level commands are available','Session expired or cancelled'])
+                enresp=self.e.expect([self.prompt,'assword','top-level commands are available','Session expired or cancelled',pexpect.TIMEOUT])
                 if enresp==1:
                     self.e.sendline(enp)
                     enpwresp=self.e.expect([self.prompt,'Last login','Login succ','assword','failure','pam_open_session: session failure',pexpect.TIMEOUT,pexpect.EOF])
@@ -156,9 +156,9 @@ class pelogon:
                         self.message='login failure'
                 elif enresp>1:
                     self.status='fail'
-                    self.message='login failure'
+                    self.message='login failure: '+self.e.before
             self.e.sendline()
-            tresp=self.e.expect([self.prompt,'Error','error','Invalid','not found'])
+            tresp=self.e.expect([self.prompt,'Error','error','Invalid','not found',pexpect.TIMEOUT])
             if tresp>0:
                 self.status='fail'
                 self.message=self.e.before

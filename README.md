@@ -89,4 +89,5 @@ Its probably easiest to just install this in a virtual environment so as not to 
 * add the path to the repository to your users path or setup a link
 
 ## To Do
+* need gracefully fail when opengear connect sometimes fails
 * create smart diffs for things like `show hardeware stack..` as it looks like the output changes between versions
