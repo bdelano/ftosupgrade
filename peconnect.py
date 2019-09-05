@@ -227,15 +227,6 @@ class pelogon:
                 (k,v)=l.split(':',1)
                 self.versioninfo[k.rstrip().lstrip()]=v.lstrip().lower()
 
-
-    def getversioninfo(self):
-        """
-        grabs all the image versions from the 'show os-version' command
-        and put them in a dictionary
-        """
-        self.versioninfo={}
-        shosv=getCommand('show os-version')
-
     def getbootinfo(self):
         """
         grabs the boot information from the switch and sets the

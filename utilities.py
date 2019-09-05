@@ -2,10 +2,11 @@ import os
 import time
 import json
 import sys
+import logging
 from termcolor import colored
 from terminaltables import AsciiTable
 
-class message:
+class setup:
     def __init__(self,**kw):
         self.inittime=time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
         self.errors={}
@@ -25,7 +26,11 @@ class message:
         self.peclog=self.devpath+'commands.log'
         self.errorlog=self.devpath+'errors.log'
         self.devinfofile=self.devpath+'devinfo.json'
-        self.logger=open(self.log,'a')
+        logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s',
+        filename=self.log,
+        level=logging.DEBUG,
+        datefmt='%Y-%m-%d %H:%M:%S')
+        self.logger=logging.getLogger('messages')
 
 
     def writedevinfo(self,devinfo):
@@ -64,27 +69,26 @@ class message:
             os.mkdir(self.devpath+'/post')
 
     def debug(self,msg):
-        m='DEBUG:%s\n' % msg
-        self.logger.write(str(m))
+        self.logger.debug(msg)
 
     def info(self,msg,**kw):
         atlist=list()
         if kw.has_key('attrs'):
             atlist.append(kw['attrs'])
-        self.logger.write(str(msg)+"\n")
+        self.logger.info(msg)
         if not self.silent: print(str(colored(msg,'green',attrs=atlist)))
 
     def warning(self,msg):
         m='WARNING:%s' % msg
-        self.logger.write(m+"\n")
+        self.logger.warning(msg)
         if not self.silent: print(colored(m,'yellow'))
-        self.addError(str(m),'warning')
+        self.addError(str(msg),'warning')
 
     def critical(self,msg):
         m='CRITICAL:%s' % msg
-        self.logger.write(m+"\n")
+        self.logger.critical(m)
         if not self.silent: print(colored(m,'red'))
-        self.addError(str(m),'critical')
+        self.addError(str(msg),'critical')
 
     def addError(self,m,level):
         self.errors[self.hostname][level].append({'tstamp':time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),'message':m})

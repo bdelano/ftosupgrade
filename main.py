@@ -5,7 +5,7 @@ import re            # for regular expressions
 import time            # for sleep and time related functions
 import logging
 from optparse import OptionParser
-from messages import *
+from utilities import *
 from prepare import *
 from upgrade import *
 from backout import *
@@ -15,6 +15,9 @@ BINFILEPATH='/tftpboot/Dell/'
 
 class main():
     def __init__(self):
+        """
+        Takes command line variables and does 1 of the following: uploads,prepares,upgrades,backout
+        """
         parser = OptionParser("usage: ftosupgrade <options>")
         parser.add_option("-d", "--devices", dest="devices",
             help="List of devices to upgrade separated by a ','", default=None)
@@ -36,7 +39,8 @@ class main():
         dl = os.getcwd().split('/')
         self.options=options
         if dl[-1]=='ftosupgrade':
-            if options.type=='upload' and options.binfile is not None and (options.devices is not None or options.region is not none): #upload bin files to multiple devices
+            if options.type=='upload' and options.binfile is not None and (options.devices is not None or options.region is not none):
+                #upload bin files to multiple devices
                 self.devlist=list()
                 self.sqllist=list()
                 if options.devices:
@@ -55,10 +59,11 @@ class main():
                             self.makeforks()
                             self.devlist=[hn]
                     self.makeforks()
-            elif options.devices is not None and options.binfile is not None: # prepare and upgrade devices
+            elif options.devices is not None and options.binfile is not None:
+                # prepare and upgrade devices
                 self.devlist=options.devices.split(",")
                 for d in self.devlist:
-                    self.m=message(hostname=d,options=options,binfilepath=BINFILEPATH)
+                    self.m=setup(hostname=d,options=options,binfilepath=BINFILEPATH)
                     if options.type=='prepare':
                         prepare(message=self.m)
                     elif options.type=='backout':
@@ -80,17 +85,11 @@ class main():
             print("please create a directory called ftosupgrade:\nmkdir ftosupgrade\nchange to that directory\ncd ftosupgrade\nand re-run this command")
 
 
-    def showerrors(self,errors,type):
-        print("%s errors found..." % type)
-        for e in errors:
-            self.m.info(e)
-        sys.exit()
-
     def makeforks(self):
         print(self.devlist)
         for hn in self.devlist:
             print("uploading %s to %s" % (self.options.binfile,hn))
-            self.m=message(hostname=hn,options=self.options,binfilepath=BINFILEPATH,silent=True)
+            self.m=setup(hostname=hn,options=self.options,binfilepath=BINFILEPATH,silent=True)
             pid=os.fork()
             if pid == 0:
                 uploadbin(message=self.m,logfile=hn+'.log',multi=True)
