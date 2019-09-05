@@ -20,18 +20,22 @@ class uploadbin:
         if kw.has_key('logfile'): self.logfile=kw['logfile']
         self.uploadinfo={}
         self.pe=pelogon(silent=self.silent,message=self.m)
-        if self.multi: self.checkbinfile()
-        if self.uploadinfo['binfilestatus'].has_key('error'):
-            ferror=self.uploadinfo['binfilestatus']['error']
-            if 'local' in ferror:
-                self.m.warning(ferror)
+        if self.multi:
+            self.checkbinfile()
+            if self.uploadinfo['binfilestatus'].has_key('error'):
+                ferror=self.uploadinfo['binfilestatus']['error']
+                if 'local' in ferror:
+                    self.m.warning(ferror)
+                else:
+                    self.m.warning(self.uploadinfo['binfilestatus']['error'])
+                    self.pe.scp()
+                    self.checkbinfile()
+                    self.m.info(self.uploadinfo['binfilestatus'])
             else:
-                self.m.warning(self.uploadinfo['binfilestatus']['error'])
-                self.pe.scp()
-                self.checkbinfile()
                 self.m.info(self.uploadinfo['binfilestatus'])
         else:
-            self.m.info(self.uploadinfo['binfilestatus'])
+            self.pe.scp()
+            self.checkbinfile()
         self.pe.exit()
         if self.multi: os._exit(0)
 

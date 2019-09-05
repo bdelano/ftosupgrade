@@ -104,6 +104,7 @@ class pelogon:
             result=['fail','unable to logon to %s@%s' % (self.u,self.ip),None]
             self.m.critical('unable to logon to %s@%s' % (self.u,self.ip))
         (self.status,self.message,self.vendor)=result
+        self.m.debug('oglogon status:%s message:%s' % (self.status,self.message))
 
     def remlogon(self):
         """
@@ -167,6 +168,7 @@ class pelogon:
         else:
             self.status='fail'
             self.message='vendor not found'
+        self.m.debug('remlogon status:%s message:%s' % (self.status,self.message))
         if self.status=='fail':
             self.m.critical(self.message)
 
@@ -225,6 +227,14 @@ class pelogon:
                 (k,v)=l.split(':',1)
                 self.versioninfo[k.rstrip().lstrip()]=v.lstrip().lower()
 
+
+    def getversioninfo(self):
+        """
+        grabs all the image versions from the 'show os-version' command
+        and put them in a dictionary
+        """
+        self.versioninfo={}
+        shosv=getCommand('show os-version')
 
     def getbootinfo(self):
         """
@@ -288,16 +298,22 @@ class pelogon:
         """
         takes a list of commands and adds them to the configuration then saves the configuration
         """
-
         self.e.sendline('conf t')
         self.e.expect(self.cprompt)
+        error=None
         for cmd in cmdlist:
             self.e.sendline(cmd)
             self.e.expect(self.cprompt)
+            if '% Error:' in self.e.before:
+                error=True
+                self.m.warning('Config Error command:%s\n%s%s' % (cmd,self.cprompt,self.e.before))
         self.e.sendline('end')
         self.e.expect(self.prompt)
-        self.e.sendline('wr')
-        self.e.expect(self.prompt)
+        if error:
+            self.m.warning('found error with configuration, skipping config save!')
+        else:
+            self.e.sendline('wr')
+            self.e.expect(self.prompt)
 
     def getCommand(self,cmd):
         """
@@ -306,6 +322,8 @@ class pelogon:
         self.e.sendline(cmd)
         self.e.expect(self.prompt)
         output=self.e.before
+        if '% Error:' in output:
+            self.m.warning('Command Error command:%s\n%s%s' % (cmd,self.prompt,output))
         return output
 
     def runchecks(self,type):
@@ -324,7 +342,8 @@ class pelogon:
             {'cmd':'show run |no-more','fn':'shrun'},
             {'cmd':'show logging |no-more','fn':'shlogging'},
             {'cmd':'show hardware stack-unit %s unit 0 execute-shell-cmd "ps" |no-more' % su,'fn':'shhwstack'},
-            {'cmd':'show lldp nei |no-more','fn':'shlldp'}
+            {'cmd':'show lldp nei |no-more','fn':'shlldp'},
+            {'cmd':'show vlt detail |no-more','fn':'shvltdet'}
         ]
         for o in commands:
             f=open(self.m.devpath+type+'/'+o['fn']+'.cmd','w')

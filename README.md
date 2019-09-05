@@ -4,9 +4,8 @@ This is specific to our company build so it most likely will not work out of the
 <!-- MDTOC maxdepth:6 firsth1:2 numbering:0 flatten:0 bullets:1 updateOnSave:1 -->
 
 - [Intallation](#intallation)   
-- [Distributing your binary files](#distributing-your-binary-files)   
-   - [notes](#notes)   
 - [Running the upgrade script](#running-the-upgrade-script)   
+   - [Uploading binary files to multiple devices](#uploading-binary-files-to-multiple-devices)   
    - [Prepare the Switches for Upgrade](#prepare-the-switches-for-upgrade)   
    - [Upgrade the Switch](#upgrade-the-switch)   
    - [Backout /  Downgrade](#backout-downgrade)   
@@ -15,6 +14,7 @@ This is specific to our company build so it most likely will not work out of the
 
 <!-- /MDTOC -->
 ## Intallation
+*CAUTION: only admins need to do this, it should already be installed!*
 Its probably easiest to just install this in a virtual environment so as not to mess with the current modules
 * use a *nix* box, tested on ubuntu 16.4
 * create environment `virtualenv ftosupgrade`
@@ -30,16 +30,12 @@ Its probably easiest to just install this in a virtual environment so as not to 
 * add a `localauth.py` file with the necessary information (see example file)
 * add the path to the repository to your users path or setup a link
 
-## Distributing your binary files
-* update `uploadbin.py` to accomodate your list of hostnames
-  * currently this uses a mysql connection to pull this information but you should be able to pass any list of hostnames the `makeforks` function
-* run `updatebin.py` to push your code version up
-* currently this is not very user friendly and you will need to work with an admin to do a mass upload
-
-### notes
-* assumes your binary files are in a directory called '/tftpboot/Dell/', you can change this in `uploadbin.py`
 
 ## Running the upgrade script
+### Uploading binary files to multiple devices
+* you can specify either a list of devices or a region
+* script will run multiple scp sessions at once (default 20)
+* assumes your binary files are in a directory called '/tftpboot/Dell/', you can change in `main.py`
 
 ### Prepare the Switches for Upgrade
 * opengear connectivity will be validated and will be listed in the prepare output
@@ -84,12 +80,12 @@ To use the script login to an appropriate noctool box and create a directory cal
 
 * Examples
   * `ftosupgrade --help` This will show a help menu with all the options
-  * `ftosupgrade -d iad301-tor01-e02-stg -b FTOS-SK-9.14.1.0.bin -t prepare` This command will prepare this switch for upgrade
+  * `ftosupgrade -d iad301-tor01-e02-stg,iad301-tor01-e02-stg -b FTOS-SK-9.14.1.0.bin -t upload` uploads binary to 2 switches
+  * `ftosupgrade -d iad301-tor01-e02-stg,iad301-tor01-e02-stg -b FTOS-SK-9.14.1.0.bin -t upload` uploads binary to all switches in ap-southeast
+  * `ftosupgrade -r ap-southeast -b FTOS-SK-9.14.1.0.bin -t prepare` This command will prepare this switch for upgrade
   * `ftosupgrade -d iad301-tor01-e02-stg,iad301-tor01-e02-stg -b FTOS-SK-9.14.1.0.bin -t prepare` prepares 2 switches  
   * `ftosupgrade -d iad301-tor01-e02-stg -b FTOS-SK-9.14.1.0.bin -t upgrade` Runs the prepare script and then runs the upgrade script which will reload the devices and do post checks
   * `ftosupgrade -d iad301-tor01-e02-stg -b FTOS-SK-9.14.1.0.bin -t backout` At the moment this just resets the boot order, you will need to reload manually as this assumes there was some issue
 
 ## To Do
-* add catch for errors when switch doesn't like submitted command
 * create smart diffs for things like `show hardeware stack..` as it looks like the output changes between versions
-* make uploadbin.py more user friendly and available to all users
