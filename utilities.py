@@ -8,6 +8,10 @@ from terminaltables import AsciiTable
 
 class setup:
     def __init__(self,**kw):
+        """
+        sets up all the variables for each device, these are shared across all classes
+        I'm sure there is a better way to do this so this most likely will change
+        """
         self.inittime=time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
         self.errors={}
         self.timedict={}
