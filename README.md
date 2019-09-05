@@ -3,33 +3,16 @@ This is specific to our company build so it most likely will not work out of the
 
 <!-- MDTOC maxdepth:6 firsth1:2 numbering:0 flatten:0 bullets:1 updateOnSave:1 -->
 
-- [Intallation](#intallation)   
 - [Running the upgrade script](#running-the-upgrade-script)   
    - [Uploading binary files to multiple devices](#uploading-binary-files-to-multiple-devices)   
    - [Prepare the Switches for Upgrade](#prepare-the-switches-for-upgrade)   
    - [Upgrade the Switch](#upgrade-the-switch)   
    - [Backout /  Downgrade](#backout-downgrade)   
 - [Tutorial](#tutorial)   
+- [Intallation](#intallation)   
 - [To Do](#to-do)   
 
 <!-- /MDTOC -->
-## Intallation
-*CAUTION: only admins need to do this, it should already be installed!*
-Its probably easiest to just install this in a virtual environment so as not to mess with the current modules
-* use a *nix* box, tested on ubuntu 16.4
-* create environment `virtualenv ftosupgrade`
-* then run `source ftosupgrade/bin/activate`
-* add the required python modules
-  * MySQL-python (only if you are going to use a remote sql server)
-  * paramiko
-  * scp
-  * pexpect
-  * termcolor
-  * terminaltables
-* clone this repository
-* add a `localauth.py` file with the necessary information (see example file)
-* add the path to the repository to your users path or setup a link
-
 
 ## Running the upgrade script
 ### Uploading binary files to multiple devices
@@ -86,6 +69,24 @@ To use the script login to an appropriate noctool box and create a directory cal
   * `ftosupgrade -d iad301-tor01-e02-stg,iad301-tor01-e02-stg -b FTOS-SK-9.14.1.0.bin -t prepare` prepares 2 switches  
   * `ftosupgrade -d iad301-tor01-e02-stg -b FTOS-SK-9.14.1.0.bin -t upgrade` Runs the prepare script and then runs the upgrade script which will reload the devices and do post checks
   * `ftosupgrade -d iad301-tor01-e02-stg -b FTOS-SK-9.14.1.0.bin -t backout` At the moment this just resets the boot order, you will need to reload manually as this assumes there was some issue
+
+## Intallation
+*CAUTION: only admins need to do this, it should already be installed!*
+
+Its probably easiest to just install this in a virtual environment so as not to mess with the current modules
+* use a *nix* box, tested on ubuntu 16.4
+* create environment `virtualenv ftosupgrade`
+* then run `source ftosupgrade/bin/activate`
+* add the required python modules
+  * MySQL-python (only if you are going to use a remote sql server)
+  * paramiko
+  * scp
+  * pexpect
+  * termcolor
+  * terminaltables
+* clone this repository
+* add a `localauth.py` file with the necessary information (see example file)
+* add the path to the repository to your users path or setup a link
 
 ## To Do
 * create smart diffs for things like `show hardeware stack..` as it looks like the output changes between versions
