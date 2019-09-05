@@ -56,7 +56,6 @@ The code was put together quickly and isn't meant to be pretty or user friendly,
 
 ### Backout /  Downgrade
 * restore previous boot config
-* reload... (will just use upgrade scripts with restored boot order)
 * TBD
 
 ## Tutorial
@@ -93,3 +92,4 @@ Its probably easiest to just install this in a virtual environment so as not to 
 * need gracefully fail when opengear connect sometimes fails
 * need to add longer pause before running post commands (trying 30 seconds for now)
 * way of sharing setup class information is hacky and needs to be replaced with inheritance
+* work on enhancing backout script to actually downgrade the switch? (not sure if this is necessary)
