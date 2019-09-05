@@ -22,7 +22,7 @@ class prepare():
             self.m.resetlogs()
             self.getOGdetails()
             self.checkOG()
-            self.m.info('--connecting to device')
+            self.m.info('--connecting to device via ssh')
             self.pe=pelogon(message=self.m)
             self.checkbinfile()
             if self.devinfo['binfilestatus'].has_key('error'):

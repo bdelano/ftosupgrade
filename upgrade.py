@@ -15,7 +15,7 @@ class upgrade():
         self.upgraded=False
         self.devinfo={}
         self.status='fail'
-        self.test=True
+        self.test=False
         self.loaddevinfo()
         self.pe=pelogon(message=self.m)  #ssh into switch
         #check to see if device is already upgraded
@@ -27,7 +27,7 @@ class upgrade():
         elif self.upgraded:
             self.m.warning('Looks like this device was already upgraded!\nPlease make sure you are looking at the correct device!')
             self.m.info('re-running post checks')
-            #self.runpostchecks()
+            self.runpostchecks()
             self.comparechecks()
             self.checkupgraded()
         else:
@@ -61,7 +61,7 @@ class upgrade():
                         if self.og.status=='success':
                             self.m.info('--login successful dropping opengear connection')
                             self.og.e.terminate()
-                            self.m.info('-attempting to log on via ssh to complete checks...')
+                            self.m.info('-attempting to connect via ssh to complete checks...')
                             self.pe=pelogon(message=self.m)
                             self.checkupgraded()
                             if self.test: self.upgraded=True #added for testing

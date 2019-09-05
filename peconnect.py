@@ -36,8 +36,6 @@ class pelogon:
         self.wfsdata=''
         self.wfsll=None
         self.ogu='netops'
-        self.silent=False
-        if kw.has_key('silent'):self.silent=kw['silent']
         self.ogp=og_dict[self.customer][self.ogu]
         if kw.has_key('port'):
             self.port=kw['port']
@@ -77,11 +75,11 @@ class pelogon:
             if resp<8: #if timeout try to send another line
                 noresp=False
             else:
-                print("trying again... if you want break this loop hit <cntrl> c")
+                self.m.warning("trying again... if you want break this loop hit <cntrl> c")
                 self.e.sendline("\r\n")
-                print("newline sent expecting response...")
+                self.m.warning("newline sent expecting response...")
                 resp=self.e.expect(exp_list,timeout=5)
-                print("resp:"+str(resp))
+                self.e.debug("resp:"+str(resp))
         self.m.debug("login to opengear complete")
         result=None
         if resp==1:
@@ -390,14 +388,14 @@ class pelogon:
         uses scp to push a file up to a device
         """
         quiet=''
-        if self.silent: quiet=' -q'
+        if self.m.silent: quiet=' -q'
         self.sshcmd="scp{quiet} -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=no -o GSSAPIAuthentication=no -o CheckHostIP=no  -o UserKnownHostsFile=/dev/null {binfilepath} {user}@{ip}:{binfile}".format(quiet=quiet,binfilepath=self.m.binfilepath+self.m.binfile,user=self.user,ip=self.ip,binfile=self.m.binfile)
         self.m.info("starting upload of %s" % self.m.binfilepath+self.m.binfile)
         e=pexpect.spawn(self.sshcmd)
         e.logfile = None
         e.expect('assword.*')
         e.sendline(up_dict[self.user])
-        if not self.silent: e.logfile = sys.stdout
+        if not self.m.silent: e.logfile = sys.stdout
         e.expect(pexpect.EOF,timeout=None)
         if 'scp:' in e.before:
             self.m.critical('unable to upload file to %s: %s' % (self.ip,e.before))

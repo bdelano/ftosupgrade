@@ -19,7 +19,7 @@ class uploadbin:
         self.m.info("uploading %s to %s..." % (self.binfile,self.hostname))
         if kw.has_key('logfile'): self.logfile=kw['logfile']
         self.uploadinfo={}
-        self.pe=pelogon(silent=self.silent,message=self.m)
+        self.pe=pelogon(message=self.m)
         if self.multi:
             self.checkbinfile()
             if self.uploadinfo['binfilestatus'].has_key('error'):
