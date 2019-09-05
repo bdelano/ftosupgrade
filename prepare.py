@@ -9,7 +9,7 @@ class prepare():
     def __init__(self,**kw):
         self.m=kw['message']
         self.hostname=self.m.hostname
-        self.m.info("----------------\npreparing %s for upgrade..." % self.hostname)
+        self.m.info("----------------\npreparing %s for upgrade..." % self.hostname,attrs='bold')
         self.devinfo={}
         self.loaddevinfo()
         self.bfsw=''
@@ -17,7 +17,7 @@ class prepare():
         if (self.devinfo.has_key('prepstatus') and self.devinfo['prepstatus']=='success' and self.m.options.noforce):
             self.m.info("Looks like this device has already been prepared, moving on...",attrs='bold')
             self.m.info("please delete %s to force!" % self.m.devinfofile)
-            self.checkOG()
+            #self.checkOG()
         else:
             self.m.resetlogs()
             self.getOGdetails()
@@ -44,10 +44,10 @@ class prepare():
             self.devinfo['errors']={'prepare':self.m.errors[self.hostname]}
             if len(self.m.errors[self.hostname]['critical'])>0:
                 self.devinfo['prepstatus']='fail'
-                self.m.warning('Errors found during preparation please check the logs!')
+                self.m.warning('\nErrors found during preparation please check the logs!')
             else:
                 self.devinfo['prepstatus']='success'
-                self.m.info('preparation completed successfully feel free to upgrade',attrs='bold')
+                self.m.info('\npreparation completed successfully feel free to upgrade',attrs='bold')
             self.m.writedevinfo(self.devinfo)
 
 
@@ -76,7 +76,6 @@ class prepare():
                 self.devinfo=json.loads(f.read())
             except:
                 self.m.warning('unable to read the devinfofile:%s' % self.m.devinfofile)
-                self.devinfo={}
 
 
     def updateBoot(self):

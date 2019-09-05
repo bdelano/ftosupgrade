@@ -10,18 +10,17 @@ class upgrade():
     def __init__(self,**kw):
         self.m=kw['message']
         self.hostname=self.m.hostname
-        self.m.info("-------------\nupgrading %s..." % self.hostname)
+        self.m.info("-------------\nupgrading %s..." % self.hostname,attrs='bold')
         self.curversion=None
         self.upgraded=False
         self.devinfo={}
         self.status='fail'
-        #self.test=self.m.options.noforce
         self.test=True
-        self.checkworkspace()
+        self.loaddevinfo()
         self.pe=pelogon(message=self.m)  #ssh into switch
         #check to see if device is already upgraded
         self.checkupgraded()
-        if self.test: self.upgraded=False
+        if self.test: self.upgraded=False # if testing assume its not upgraded already
         if self.status=='prepare':
             msg='ERROR: looks like the workspace is not prepared correctly please re-run the prepare script'
             self.m.critical(msg)
@@ -67,7 +66,6 @@ class upgrade():
                             self.checkupgraded()
                             if self.test: self.upgraded=True #added for testing
                             self.runpostchecks()
-                            self.pe.exit()
                         else:
                             self.m.critical('ERROR: unable to log back into switch!\nPlease re-run the upgrade command as sometimes it takes a little while for tacacs!')
                     else:
@@ -103,11 +101,11 @@ class upgrade():
             self.m.critical('--Upgrade FAILED: current version (%s) does not match target version (%s)' % (self.curversion,self.devinfo['binswversion']))
 
     def comparechecks(self):
-        self.m.info('-comparing pre/post')
+        self.m.info('--comparing pre/post')
         diffrx=re.compile("^([+-]) (.*)")
         d=difflib.Differ()
         for f in ['shintdescr','shlldp','shvltdet']:
-            self.m.info('--diffing %s.cmd' % f)
+            self.m.info('---diffing %s.cmd' % f)
             pref=open(self.m.devpath+'/pre/'+f+'.cmd','r')
             posf=open(self.m.devpath+'/post/'+f+'.cmd','r')
             difflist=list(d.compare(pref.read().split("\r\n"),posf.read().split("\r\n")))
@@ -124,16 +122,10 @@ class upgrade():
         if self.curversion==self.devinfo['binswversion']:
             self.upgraded=True
 
-    def checkworkspace(self):
-        self.m.info("-Setting up your workspace...")
-        if(os.path.exists(self.m.devpath)):
-            if os.path.isfile(self.m.devinfofile):
-                f=open(self.m.devinfofile,'r')
-                try:
-                    self.devinfo=json.loads(f.read())
-                except:
-                    self.status='prepare'
-            else:
-                self.status='prepare'
-        else:
-            self.status='prepare'
+    def loaddevinfo(self):
+        if os.path.isfile(self.m.devinfofile):
+            f=open(self.m.devinfofile,'r')
+            try:
+                self.devinfo=json.loads(f.read())
+            except:
+                self.m.warning('unable to read the devinfofile:%s' % self.m.devinfofile)
