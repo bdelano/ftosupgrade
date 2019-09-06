@@ -59,7 +59,7 @@ The code was put together quickly and isn't meant to be pretty or user friendly,
 * TBD
 
 ## Tutorial
-To use the script login to an appropriate noctool box and top the appropriate `ftosupgrade` command (see examples below).  The script will then create the necessary directories in `~/ftosupgrade` e.g. //home/bdelano/ftosupgrade. You can then change to this directory to see all the logs of your interactions with the switches. 
+To use the script login to an appropriate noctool box and type the appropriate `ftosupgrade` command (see examples below).  The script will then create the necessary directories in `~/ftosupgrade` e.g. `/home/bdelano/ftosupgrade`. You can then change to this directory to see all the logs of your interactions with the switches.
 
 * You will to run the `gong` command and login to at least 1 device as this uses your stored trigger credentials.
 
@@ -92,6 +92,4 @@ Its probably easiest to just install this in a virtual environment so as not to 
 
 ## To Do
 * need gracefully fail when opengear connect sometimes fails
-* need to add longer pause before running post commands (trying 30 seconds for now)
-* way of sharing setup class information is hacky and needs to be replaced with inheritance
-* work on enhancing backout script to actually downgrade the switch? (not sure if this is necessary)
+* need to add longer pause before running post commands (trying 60 seconds for now)
