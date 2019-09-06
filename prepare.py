@@ -29,8 +29,11 @@ class prepare(utils):
             self.checkOG()
             self.info('--connecting to device via ssh')
             self.pe=pelogon(hostname=self.hostname,options=self.options)
+            self.devinfo['bootinfo']=self.pe.bootinfo
             self.checkbinfile()
-            if self.devinfo['binfilestatus'].has_key('error'):
+            if self.bfsw==self.devinfo['bootinfo']['primary']['version']:
+                self.critical("Looks like this switch is already running %s, please check you are looking at the correct switch!" % self.bfsw)
+            elif self.devinfo['binfilestatus'].has_key('error'):
                 self.info(self.devinfo['binfilestatus']['error'])
             else:
                 self.version=self.pe.bootinfo['primary']['version']
@@ -46,10 +49,8 @@ class prepare(utils):
                                 self.info('---found errors restoring config boot order!')
                                 self.pe.setBoot(self.devinfo['bootinfo']['primary']['slot'],self.devinfo['bootinfo']['secondary']['slot'])
 
-
-
             #closing connection
-            self.pe.e.terminate()
+            self.pe.exit()
             self.combineerrors()
             self.devinfo['errors']={'prepare':self.errors[self.hostname]}
             if len(self.errors[self.hostname]['critical'])>0:
@@ -89,7 +90,6 @@ class prepare(utils):
         using the bootinfo detail from the peconnect module this function checks if the
         correct version is assigned to the alternate slot and updates it if it is not assigned
         """
-        self.devinfo['bootinfo']=self.pe.bootinfo
         curprimary=self.devinfo['bootinfo']['primary']['slot']
         altslot={'A':'B','B':'A'}
         self.debug('BFSW:%s' % self.bfsw)

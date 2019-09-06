@@ -81,7 +81,7 @@ class pelogon(utils):
                 self.e.sendline("\r\n")
                 self.warning("newline sent expecting response...")
                 resp=self.e.expect(exp_list,timeout=5)
-                self.e.debug("resp:"+str(resp))
+                self.debug("resp:"+str(resp))
         self.debug("login to opengear complete")
         result=None
         if resp==1:

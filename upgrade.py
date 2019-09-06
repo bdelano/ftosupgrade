@@ -19,7 +19,7 @@ class upgrade(utils):
         self.curversion=None
         self.upgraded=False
         self.status='fail'
-        self.test=False
+        self.test=True
         self.loaddevinfo()
         self.pe=pelogon(hostname=self.hostname,options=self.options)  #ssh into switch, automatically retrieves bootinfo
         #check to see if device is already upgraded
@@ -83,11 +83,13 @@ class upgrade(utils):
                     self.og.e.expect(['.*\[confirm yes/no\]:','Save\? \[yes/no\]:'])
                     self.og.e.sendline('no')
                     self.og.e.expect(self.og.prompt)
-                    self.critical('looks like the config has changed since being prepared, please investigate!')
-                    self.critical('this can usually be fixed by just saving the config an re-running this script...')
+                    self.warning('looks like the config has changed since being prepared, please investigate!')
+                    self.warning('this can usually be fixed by just saving the config an re-running this script...')
             else:
                 self.critical('unable to login to opengear:%s' % self.og.message)
             self.og.e.terminate()
+
+        self.combineerrors()
         self.devinfo['errors']={'upgrade':self.errors[self.hostname]}
         self.pe.exit()
         if len(self.errors[self.hostname]['critical'])>0:
@@ -97,6 +99,11 @@ class upgrade(utils):
             self.devinfo['upgradestatus']='upgraded'
             self.info('upgraded successfully',attrs='bold')
         self.writedevinfo(self.devinfo)
+
+    def combineerrors(self):
+        for et in ['warning','critical']:
+            for e in self.pe.errors[self.hostname][et]:
+                self.errors[self.hostname][et].append(e)
 
     def runpostchecks(self):
         """
