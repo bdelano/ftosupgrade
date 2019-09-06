@@ -37,15 +37,20 @@ class prepare(utils):
                 if self.devinfo['oginfo'].has_key('mgmtip'):
                     if self.pe.prompt != self.og.prompt:
                         self.critial('The prompt on the opengear (%s) does not match! Please investigate!' % self.og.prompt)
-                self.pe.runchecks('pre')
-                self.info('---updating boot info, this may take a little while...')
-                self.updateBoot()
-                if len(self.errors[self.hostname]['critical'])>0:
-                    self.info('---found errors restoring config boot order!')
-                    self.pe.setBoot(self.devinfo['bootinfo']['primary']['slot'],self.devinfo['bootinfo']['secondary']['slot'])
+                    else:
+                        self.pe.runchecks('pre')
+                        if len(self.pe.errors[self.hostname]['critical'])<1:
+                            self.info('---updating boot info, this may take a little while...')
+                            self.updateBoot()
+                            if len(self.pe.errors[self.hostname]['critical'])>0:
+                                self.info('---found errors restoring config boot order!')
+                                self.pe.setBoot(self.devinfo['bootinfo']['primary']['slot'],self.devinfo['bootinfo']['secondary']['slot'])
+
+
 
             #closing connection
             self.pe.e.terminate()
+            self.combineerrors()
             self.devinfo['errors']={'prepare':self.errors[self.hostname]}
             if len(self.errors[self.hostname]['critical'])>0:
                 self.devinfo['prepstatus']='fail'
@@ -55,6 +60,11 @@ class prepare(utils):
                 self.info('\npreparation completed successfully feel free to upgrade',attrs='bold')
             self.writedevinfo(self.devinfo)
 
+
+    def combineerrors(self):
+        for et in ['warning','critical']:
+            for e in self.pe.errors[self.hostname][et]:
+                self.errors[self.hostname][et].append(e)
 
     def checkOG(self):
         """
