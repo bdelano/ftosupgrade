@@ -3,36 +3,31 @@ import json
 import logging
 import time
 import os
+from utilities import utils
 from peconnect import *
 
-class uploadbin:
+class uploadbin(utils):
     def __init__(self,**kw):
-        self.m=kw['message']
-        self.hostname=self.m.hostname
-        self.binfile=self.m.binfile
-        self.binfilepath=self.m.binfilepath
+        utils.__init__(self,**kw)
         self.multi=False
-        self.silent=False
         if kw.has_key('multi'): self.multi=True
         if self.multi: self.silent=True
-        self.path=os.getcwd()+'/'+self.hostname
-        self.m.info("uploading %s to %s..." % (self.binfile,self.hostname))
-        if kw.has_key('logfile'): self.logfile=kw['logfile']
+        self.info("uploading %s to %s..." % (self.binfile,self.hostname))
         self.uploadinfo={}
-        self.pe=pelogon(message=self.m)
+        self.pe=pelogon(hostname=self.hostname,options=self.options,silent=self.silent)
         if self.multi:
             self.checkbinfile()
             if self.uploadinfo['binfilestatus'].has_key('error'):
                 ferror=self.uploadinfo['binfilestatus']['error']
                 if 'local' in ferror:
-                    self.m.warning(ferror)
+                    self.warning(ferror)
                 else:
-                    self.m.warning(self.uploadinfo['binfilestatus']['error'])
+                    self.warning(self.uploadinfo['binfilestatus']['error'])
                     self.pe.scp()
                     self.checkbinfile()
-                    self.m.info(self.uploadinfo['binfilestatus'])
+                    self.info(self.uploadinfo['binfilestatus'])
             else:
-                self.m.info(self.uploadinfo['binfilestatus'])
+                self.info(self.uploadinfo['binfilestatus'])
         else:
             self.pe.scp()
             self.checkbinfile()
