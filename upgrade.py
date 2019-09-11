@@ -19,18 +19,15 @@ class upgrade(utils):
         self.info("-------------\nupgrading %s..." % self.hostname,attrs='bold')
         self.curversion=None
         self.upgraded=False
-        self.status='fail'
-        self.test=False
         self.loaddevinfo()
         self.pe=pelogon(hostname=self.hostname,options=self.options)  #ssh into switch, automatically retrieves bootinfo
         #check to see if device is already upgraded
         self.checkupgraded()
-        if self.test: self.upgraded=False # if testing pretend its not upgraded already
+        if not self.options.notest: self.upgraded=False # if testing pretend its not upgraded already
         if self.upgraded:
             self.warning('Looks like this device was already upgraded!\nPlease make sure you are looking at the correct device!')
             self.info('re-running post checks')
             self.runpostchecks()
-            self.comparechecks()
             self.checkupgraded()
         else:
             self.info('-connecting to opengear...')
@@ -41,24 +38,25 @@ class upgrade(utils):
                 self.info('--connected, reloading device, please be patient...')
                 self.info('--switching output to command line...')
                 self.og.e.logfile=sys.stdout
-                if self.test:
+                if self.options.notest:
+                    self.og.e.sendline('reload')
+                    resp=self.og.e.expect(['.*\[confirm yes/no\]:','Save\? \[yes/no\]:'])
+                else:
                     self.og.e.sendline('dir |no-more')
                     self.og.e.expect(self.og.prompt)
                     self.og.e.sendline('exit')
                     self.og.e.expect('get started')
                     self.og.e.sendline()
                     resp=0
-                else:
-                    self.og.e.sendline('reload')
-                    resp=self.og.e.expect(['.*\[confirm yes/no\]:','Save\? \[yes/no\]:'])
+
                 if resp==0:
-                    if not self.test: self.og.e.sendline('yes')
+                    if self.options.notest: self.og.e.sendline('yes')
                     self.devinfo['upgradestatus']='upgraded'
                     resp=self.og.e.expect(['Login:',pexpect.EOF],timeout=None)
                     if resp==0:
                         self.info('\n--reload complete, waiting for 10 seconds...')
                         self.og.message='login' #set og message to force login
-                        if not self.test: time.sleep(10) #sleeping to let device recover
+                        if self.options.notest: time.sleep(10) #sleeping to let device recover
                         self.info('-attempting to log on via opengear...')
                         self.og.remlogon()
 
@@ -68,9 +66,9 @@ class upgrade(utils):
                             self.info('-attempting to connect via ssh to complete checks...')
                             self.pe=pelogon(hostname=self.hostname,options=self.options)
                             self.checkupgraded()
-                            if self.test: self.upgraded=True #added for testing
+                            if not self.options.notest: self.upgraded=True #added for testing
                             self.info('--waiting for 120 seconds for interfaces to come back before running post checks...')
-                            if not self.test: time.sleep(120)
+                            if self.options.notest: time.sleep(120)
                             self.runpostchecks()
                         else:
                             self.critical('ERROR: unable to log back into switch!\nPlease re-run the upgrade command as sometimes it takes a little while for tacacs!')
