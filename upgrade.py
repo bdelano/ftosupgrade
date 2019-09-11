@@ -20,7 +20,7 @@ class upgrade(utils):
         self.curversion=None
         self.upgraded=False
         self.status='fail'
-        self.test=True
+        self.test=False
         self.loaddevinfo()
         self.pe=pelogon(hostname=self.hostname,options=self.options)  #ssh into switch, automatically retrieves bootinfo
         #check to see if device is already upgraded

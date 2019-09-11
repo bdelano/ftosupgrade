@@ -4,7 +4,7 @@ import pexpect
 import re
 import time
 from utilities import utils
-from localauth import *
+from localauth import og_dict, up_dict, tcrc
 
 class pelogon(utils):
     def __init__(self,**kw):
