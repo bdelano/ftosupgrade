@@ -34,7 +34,7 @@ class prepare(utils):
             self.pe=pelogon(hostname=self.hostname,options=self.options)
             self.devinfo['bootinfo']=self.pe.bootinfo
             self.checkbinfile()
-            if self.bfsw==self.devinfo['bootinfo']['primary']['version']:
+            if self.bfsw==self.devinfo['bootinfo']['primary']['version'] and self.options.noforce:
                 self.critical("Looks like this switch is already running %s, please check you are looking at the correct switch!" % self.bfsw)
             elif self.devinfo['binfilestatus'].has_key('error'):
                 self.info(self.devinfo['binfilestatus']['error'])
