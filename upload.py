@@ -4,7 +4,7 @@ import logging
 import time
 import os
 from utilities import utils
-from peconnect import *
+from peconnect import pelogon
 
 class uploadbin(utils):
     def __init__(self,**kw):
@@ -37,7 +37,7 @@ class uploadbin(utils):
     def checkbinfile(self):
         self.uploadinfo['files']=self.pe.getfilelist()
         if self.binfile:
-            if path.exists('%s%s' % (self.binfilepath,self.binfile)):
+            if os.path.exists('%s%s' % (self.binfilepath,self.binfile)):
                 if self.uploadinfo['files'].has_key(self.binfile):
                     binres=self.pe.getCommand('verify md5 flash://%s %s' % (self.binfile,binmd5[self.binfile]))
                     if 'FAILED' in binres:

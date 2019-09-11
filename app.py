@@ -5,10 +5,11 @@ import re            # for regular expressions
 import time            # for sleep and time related functions
 import logging
 from optparse import OptionParser
-from prepare import *
-from upgrade import *
-from backout import *
-from upload import *
+from prepare import prepare
+from upgrade import upgrade
+from backout import backout
+from upload import uploadbin
+from utilities import utils
 VERSION='1.5BETA'
 BINFILEPATH='/tftpboot/Dell/'
 

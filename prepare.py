@@ -1,10 +1,13 @@
 import os
 import logging
 import json
+import re
+import sys
 from utilities import utils
-from upload import *
-from peconnect import *
-from mysql import *
+from upload import uploadbin
+from mysql import mysql
+from peconnect import pelogon
+from localauth import binmd5
 
 class prepare(utils):
     def __init__(self,**kw):
@@ -59,7 +62,7 @@ class prepare(utils):
             else:
                 self.devinfo['prepstatus']='success'
                 self.info('\npreparation completed successfully feel free to upgrade',attrs='bold')
-            self.writedevinfo(self.devinfo)
+            self.writedevinfo()
 
 
     def combineerrors(self):
@@ -98,13 +101,7 @@ class prepare(utils):
             self.info('----skipping sys flash upgrade as its already in place!')
         else:
             self.info('upgrading system flash')
-            self.pe.e.logfile = sys.stdout
-            self.pe.e.sendline('upgrade sys flash: %s:' % altslot[curprimary])
-            self.pe.e.expect("Source file name \[\]:")
-            self.pe.e.sendline(self.binfile)
-            self.pe.e.expect(self.pe.prompt,timeout=None)
-            self.pe.e.logfile=open(self.peclog, 'a')
-            self.pe.getbootinfo()
+            self.pe.upgradesysflash(altslot[curprimary])
             self.devinfo['bootinfo']=self.pe.bootinfo
 
         if self.bfsw==self.devinfo['bootinfo']['secondary']['version']:
@@ -125,7 +122,7 @@ class prepare(utils):
             if bfm:
                 self.bfsw=bfm.group(1)+'('+bfm.group(2)+')'
                 self.devinfo['binswversion']=self.bfsw
-                if path.exists('%s%s' % (self.binfilepath,self.binfile)):
+                if os.path.exists('%s%s' % (self.binfilepath,self.binfile)):
                     if self.devinfo['files'].has_key(self.binfile):
                         binres=self.pe.getCommand('verify md5 flash://%s %s' % (self.binfile,binmd5[self.binfile]))
                         if 'FAILED' in binres:
@@ -134,7 +131,7 @@ class prepare(utils):
                             self.devinfo['binfilestatus']={'succcess':'binfile (%s) exists' % self.binfile}
                     else:
                         self.info('binfile does not exist..')
-                        u=uploadbin(message=self.m)
+                        u=uploadbin(hostname=self.hostname,options=self.options)
                         self.devinfo['binfilestatus']=u.uploadinfo['binfilestatus']
                 else:
                     self.devinfo['binfilestatus']={'error':'cannot find local file %s%s' % (self.binfilepath,self.binfile)}

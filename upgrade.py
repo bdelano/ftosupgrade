@@ -3,9 +3,10 @@ import json
 import time
 import sys
 import difflib
+import pexpect
+import re
 from utilities import utils
-from peconnect import *
-from mysql import *
+from peconnect import pelogon
 
 class upgrade(utils):
     def __init__(self,**kw):
@@ -69,8 +70,8 @@ class upgrade(utils):
                             self.pe=pelogon(hostname=self.hostname,options=self.options)
                             self.checkupgraded()
                             if self.test: self.upgraded=True #added for testing
-                            self.info('waiting for 60 seconds for interfaces to come back before running post checks...')
-                            if not self.test: time.sleep(60)
+                            self.info('waiting for 120 seconds for interfaces to come back before running post checks...')
+                            if not self.test: time.sleep(120)
                             self.runpostchecks()
                         else:
                             self.critical('ERROR: unable to log back into switch!\nPlease re-run the upgrade command as sometimes it takes a little while for tacacs!')
@@ -98,7 +99,7 @@ class upgrade(utils):
         else:
             self.devinfo['upgradestatus']='upgraded'
             self.info('upgraded successfully',attrs='bold')
-        self.writedevinfo(self.devinfo)
+        self.writedevinfo()
 
     def combineerrors(self):
         for et in ['warning','critical']:

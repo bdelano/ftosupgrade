@@ -30,13 +30,13 @@ class utils:
         self.errorlog=self.devpath+'errors.log'
         self.logger=logging.getLogger('messages')
 
-    def writedevinfo(self,devinfo):
+    def writedevinfo(self):
         """
         write devinfo to .json file (saves state)
         """
         f=open(self.devinfofile,'w')
         self.info('-writing %s...' % self.devinfofile)
-        f.write(json.dumps(devinfo))
+        f.write(json.dumps(self.devinfo))
 
     def writeerrors(self):
         """
@@ -71,8 +71,8 @@ class utils:
         """
         creates necessary directories and file structure for the tool to work
         """
-        if not self.silent: print("-Setting up your workspace...")
         if not os.path.exists(self.devpath):
+            if not self.silent: print("-Setting up your workspace...")
             if not self.silent: print("--creating necessary directories...")
             if not os.path.exists(self.path):
                 if not self.silent: print("---creating %s" % self.path)

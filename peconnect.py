@@ -4,7 +4,6 @@ import pexpect
 import re
 import time
 from utilities import utils
-from os import path
 from localauth import *
 
 class pelogon(utils):
@@ -286,6 +285,15 @@ class pelogon(utils):
         self.e.terminate()
         #self.nm.disconnect()
 
+    def upgradesysflash(self,altslot):
+        self.e.logfile = sys.stdout
+        self.e.sendline('upgrade sys flash: %s:' % altslot)
+        self.e.expect("Source file name \[\]:")
+        self.e.sendline(self.binfile)
+        self.e.expect(self.prompt,timeout=None)
+        self.getbootinfo()
+        self.e.logfile=open(self.peclog, 'a')
+
     def addConfig(self,cmdlist):
         """
         takes a list of commands and adds them to the configuration then saves the configuration
@@ -311,8 +319,10 @@ class pelogon(utils):
         """
         takes a command and returns the output
         """
+        self.debug('sending command:'+cmd)
         self.e.sendline(cmd)
         self.e.expect(self.prompt)
+        self.debug('command complete!')
         output=self.e.before
         if '% Error:' in output:
             self.warning('Command Error command:%s\n%s%s' % (cmd,self.prompt,output))
