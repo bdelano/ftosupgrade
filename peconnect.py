@@ -306,12 +306,13 @@ class pelogon(utils):
             self.e.expect(self.cprompt)
             if '% Error:' in self.e.before:
                 error=True
-                self.warning('Config Error command:%s\n%s%s' % (cmd,self.cprompt,self.e.before))
+                self.critical('Config Error command:%s\n%s%s' % (cmd,self.cprompt,self.e.before))
         self.e.sendline('end')
         self.e.expect(self.prompt)
         if error:
             self.warning('found error with configuration, skipping config save!')
         else:
+            self.info('---saving configuration, please wait...')
             self.e.sendline('wr')
             self.e.expect(self.prompt)
 

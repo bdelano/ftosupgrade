@@ -61,16 +61,16 @@ class upgrade(utils):
                         self.info('\n--reload complete, waiting for 10 seconds...')
                         self.og.message='login' #set og message to force login
                         if not self.test: time.sleep(10) #sleeping to let device recover
-                        self.info('attempting to log on via opengear...')
+                        self.info('-attempting to log on via opengear...')
                         self.og.remlogon()
                         if self.og.status=='success':
-                            self.info('--login successful dropping opengear connection')
+                            self.info('-login successful dropping opengear connection')
                             self.og.e.terminate()
                             self.info('-attempting to connect via ssh to complete checks...')
                             self.pe=pelogon(hostname=self.hostname,options=self.options)
                             self.checkupgraded()
                             if self.test: self.upgraded=True #added for testing
-                            self.info('waiting for 120 seconds for interfaces to come back before running post checks...')
+                            self.info('--waiting for 120 seconds for interfaces to come back before running post checks...')
                             if not self.test: time.sleep(120)
                             self.runpostchecks()
                         else:
@@ -92,12 +92,12 @@ class upgrade(utils):
 
         self.combineerrors()
         self.devinfo['errors']={'upgrade':self.errors[self.hostname]}
+        self.info('--exiting device...')
         self.pe.exit()
+        self.devinfo['upgradestatus']='upgraded'
         if len(self.errors[self.hostname]['critical'])>0:
-            self.devinfo['upgradestatus']='upgraded'
             self.warning('attempted upgrade but found some errors!')
         else:
-            self.devinfo['upgradestatus']='upgraded'
             self.info('upgraded successfully',attrs='bold')
         self.writedevinfo()
 

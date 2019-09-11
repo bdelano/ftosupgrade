@@ -53,6 +53,7 @@ class prepare(utils):
                                 self.pe.setBoot(self.devinfo['bootinfo']['primary']['slot'],self.devinfo['bootinfo']['secondary']['slot'])
 
             #closing connection
+            self.info('--exiting device...')
             self.pe.exit()
             self.combineerrors()
             self.devinfo['errors']={'prepare':self.errors[self.hostname]}
@@ -105,6 +106,7 @@ class prepare(utils):
             self.devinfo['bootinfo']=self.pe.bootinfo
 
         if self.bfsw==self.devinfo['bootinfo']['secondary']['version']:
+            self.info('---setting boot configuration...')
             self.pe.setBoot(altslot[curprimary],curprimary)
         else:
             self.critical('version %s does not match the binary %s' (self.devinfo['bootinfo']['secondary']['version'],self.bfsw))
