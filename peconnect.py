@@ -360,6 +360,24 @@ class pelogon(utils):
                 self.checkalarms(cmdres)
             elif o['fn']=='shhwstack':
                 self.checkhwstack(cmdres)
+            elif o['fn']=='shvltdet':
+                self.checkshvltdet(cmdres)
+
+
+    def checkshvltdet(self,cmdres):
+        """
+        checks VLT Detail for peer and local mismatch
+        """
+        for l in cmdres.split("\r\n"):
+            cols=l.lstrip().split()
+            if len(cols)>4:
+                int=cols[0]
+                peer=cols[3].lower()
+                local=cols[2].lower()
+                if ('up' in peer or 'down' in peer) and ('up' in local or 'down' in local):
+                    self.debug('local:%s peer:%s' % (local,peer))
+                    if local != peer:
+                        self.critical('vlterror:Looks likes our VLT PEER (%s) and LOCAL(%s) do not match on PO%s' % (local,peer,int))
 
     def checkhwstack(self,cmdres):
         """
