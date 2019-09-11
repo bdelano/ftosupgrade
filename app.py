@@ -30,10 +30,13 @@ class main():
         parser.add_option("-b","--binfile",dest="binfile",
             help="The name of the binary file you are using for the upgrade e.g. FTOS-SK-9.14.1.0.bin")
         parser.add_option("-n","--numforks",dest="numforks",
-            help="The number of scp sessions you want to run at once, default is 20",default=20)
+            help="The number of scp sessions you want to run at once, default is 20 (only for uploads!)",default=20)
         parser.add_option("-f", "--force", dest="noforce",
             action="store_false",
             help="use -f to force scripts to run (only works with prepare at the moment)", default=True)
+        parser.add_option("--test", dest="notest",
+            action="store_false",
+            help="use --test to run the upgrade command without reloading the switch", default=True)
         parser.add_option("-p","--binfilepath",dest="binfilepath",
             default=BINFILEPATH,
             help="The path where all your binary files are stored")
@@ -77,6 +80,9 @@ class main():
                         if len(u.errors[d]['critical'])>0:
                             m.warning('Found Errors with upgrade...exiting!')
                             sys.exit()
+                    else:
+                        m.warning('Found Errors with prepare... exiting!')
+                        sys.exit()
 
 
                 #self.m.writeerrors()
