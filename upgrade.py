@@ -26,10 +26,7 @@ class upgrade(utils):
         #check to see if device is already upgraded
         self.checkupgraded()
         if self.test: self.upgraded=False # if testing pretend its not upgraded already
-        if self.status=='prepare':
-            msg='ERROR: looks like the workspace is not prepared correctly please re-run the prepare script'
-            self.critical(msg)
-        elif self.upgraded:
+        if self.upgraded:
             self.warning('Looks like this device was already upgraded!\nPlease make sure you are looking at the correct device!')
             self.info('re-running post checks')
             self.runpostchecks()
@@ -56,6 +53,7 @@ class upgrade(utils):
                     resp=self.og.e.expect(['.*\[confirm yes/no\]:','Save\? \[yes/no\]:'])
                 if resp==0:
                     if not self.test: self.og.e.sendline('yes')
+                    self.devinfo['upgradestatus']='upgraded'
                     resp=self.og.e.expect(['Login:',pexpect.EOF],timeout=None)
                     if resp==0:
                         self.info('\n--reload complete, waiting for 10 seconds...')
@@ -63,6 +61,7 @@ class upgrade(utils):
                         if not self.test: time.sleep(10) #sleeping to let device recover
                         self.info('-attempting to log on via opengear...')
                         self.og.remlogon()
+
                         if self.og.status=='success':
                             self.info('-login successful dropping opengear connection')
                             self.og.e.terminate()
@@ -76,8 +75,7 @@ class upgrade(utils):
                         else:
                             self.critical('ERROR: unable to log back into switch!\nPlease re-run the upgrade command as sometimes it takes a little while for tacacs!')
                     else:
-                        msg='unable to catch end of reload, please attempt to login manually'
-                        self.critical(msg)
+                        self.critical('unable to catch end of reload, please attempt to login manually')
                         self.critical(self.og.message)
                 else:
                     self.og.e.sendline('no')
@@ -86,15 +84,16 @@ class upgrade(utils):
                     self.og.e.expect(self.og.prompt)
                     self.warning('looks like the config has changed since being prepared, please investigate!')
                     self.warning('this can usually be fixed by just saving the config an re-running this script...')
+                    self.devinfo['upgradestatus']='failed'
             else:
                 self.critical('unable to login to opengear:%s' % self.og.message)
+                self.devinfo['upgradestatus']='failed'
             self.og.e.terminate()
 
         self.combineerrors()
         self.devinfo['errors']={'upgrade':self.errors[self.hostname]}
         self.info('--exiting device...')
         self.pe.exit()
-        self.devinfo['upgradestatus']='upgraded'
         if len(self.errors[self.hostname]['critical'])>0:
             self.warning('attempted upgrade but found some errors!')
         else:
@@ -142,6 +141,5 @@ class upgrade(utils):
         check if current software matches upgrade target
         """
         self.curversion=self.pe.bootinfo['primary']['version']
-        #if self.curversion==self.devinfo['binswversion'] or self.devinfo['upgradestatus']=='upgraded':
         if self.curversion==self.devinfo['binswversion']:
             self.upgraded=True
