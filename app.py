@@ -10,7 +10,7 @@ from upgrade import upgrade
 from backout import backout
 from upload import uploadbin
 from utilities import utils
-VERSION='1.5BETA'
+VERSION='1.7BETA'
 BINFILEPATH='/tftpboot/Dell/'
 
 class main():

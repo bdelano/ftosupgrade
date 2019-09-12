@@ -98,10 +98,10 @@ class pelogon(utils):
         elif resp==7:
             result=['success','skip','dell']
         elif resp==8:
-            result=['fail','timeout to %s@%s' % (self.u,self.ip),None]
+            result=['fail','timeout to %s@%s' % (self.ogu,self.ip),None]
         else:
-            result=['fail','unable to logon to %s@%s' % (self.u,self.ip),None]
-            self.critical('unable to logon to %s@%s' % (self.u,self.ip))
+            result=['fail','unable to logon to %s@%s' % (self.ogu,self.ip),None]
+            self.critical('unable to logon to %s@%s' % (self.ogu,self.ip))
         (self.status,self.message,self.vendor)=result
         self.debug('oglogon status:%s message:%s' % (self.status,self.message))
 

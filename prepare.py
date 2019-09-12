@@ -42,7 +42,7 @@ class prepare(utils):
                 self.version=self.pe.bootinfo['primary']['version']
                 if self.devinfo['oginfo'].has_key('mgmtip'):
                     if self.pe.prompt != self.og.prompt:
-                        self.critial('The prompt on the opengear (%s) does not match! Please investigate!' % self.og.prompt)
+                        self.critical('The prompt on the opengear (%s) does not match! Please investigate!' % self.og.prompt)
                     else:
                         self.pe.runchecks('pre')
                         if len(self.pe.errors[self.hostname]['critical'])<1:
@@ -154,13 +154,15 @@ class prepare(utils):
         self.dbh=mysql()
         sql="""
         select d.label,d.mgmtip,l.interface
-        from layer2 as l join devices as d on d.id=l.hostid
-        where d.label like '%oob'
-        and l.description like '{hostname}'
+        from layer2 as l
+        join devices as d on l.hostid=d.id
+        left outer join devices as rp on rp.id=l.ifid
+        where d.label like '%-oob'
+        and rp.trignodename='{hostname}'
         """.format(hostname=self.hostname)
         self.dbh.buildretdict(sql)
         if len(self.dbh.retdict)==1:
             self.devinfo['oginfo']=self.dbh.retdict[0]
         else:
-            self.critial('ogerror:unable to get opengear details!')
+            self.critical('ogerror:unable to get opengear details!')
             self.devinfo['oginfo']={'error':'unable to get opengear details!'}
