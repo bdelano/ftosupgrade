@@ -341,6 +341,7 @@ class pelogon(utils):
         commands=[
             {'cmd':'show alarm |no-more','fn':'shalarm'},
             {'cmd':'show vlt br |no-more','fn':'shvlt'},
+            {'cmd':'show vlt mismatch |no-more','fn':'shvltmismatch'},
             {'cmd':'show int desc |no-more','fn':'shintdescr'},
             {'cmd':'show run |no-more','fn':'shrun'},
             {'cmd':'show logging |no-more','fn':'shlogging'},
@@ -362,7 +363,17 @@ class pelogon(utils):
                 self.checkhwstack(cmdres)
             elif o['fn']=='shvltdet':
                 self.checkshvltdet(cmdres)
+            elif o['fn']=='shvltmismatch':
+                self.checkshvltmismatch(cmdres)
 
+
+    def checkshvltmismatch(self,cmdres):
+        """
+        checks if anything exists in show vlt mismatch
+        """
+        if len(cmdres.split("\r\n"))>2:
+            self.critical('vlterror: Found something for show vlt mismatch command!')
+            self.critical(cmdres)
 
     def checkshvltdet(self,cmdres):
         """

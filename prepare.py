@@ -29,33 +29,33 @@ class prepare(utils):
         else:
             self.resetlogs()
             self.getOGdetails()
-            self.checkOG()
-            self.info('--connecting to device via ssh')
-            self.pe=pelogon(hostname=self.hostname,options=self.options)
-            self.devinfo['bootinfo']=self.pe.bootinfo
-            self.checkbinfile()
-            if self.bfsw==self.devinfo['bootinfo']['primary']['version'] and self.options.noforce:
-                self.critical("Looks like this switch is already running %s, please check you are looking at the correct switch!" % self.bfsw)
-            elif self.devinfo['binfilestatus'].has_key('error'):
-                self.info(self.devinfo['binfilestatus']['error'])
-            else:
-                self.version=self.pe.bootinfo['primary']['version']
-                if self.devinfo['oginfo'].has_key('mgmtip'):
-                    if self.pe.prompt != self.og.prompt:
-                        self.critical('The prompt on the opengear (%s) does not match! Please investigate!' % self.og.prompt)
-                    else:
-                        self.pe.runchecks('pre')
-                        if len(self.pe.errors[self.hostname]['critical'])<1:
-                            self.info('---updating boot info, this may take a little while...')
-                            self.updateBoot()
-                            if len(self.pe.errors[self.hostname]['critical'])>0:
-                                self.info('---found errors restoring config boot order!')
-                                self.pe.setBoot(self.devinfo['bootinfo']['primary']['slot'],self.devinfo['bootinfo']['secondary']['slot'])
-
-            #closing connection
-            self.info('--exiting device...')
-            self.pe.exit()
-            self.combineerrors()
+            if 'error' not in self.devinfo['oginfo']:
+                self.checkOG()
+                self.info('--connecting to device via ssh')
+                self.pe=pelogon(hostname=self.hostname,options=self.options)
+                self.devinfo['bootinfo']=self.pe.bootinfo
+                self.checkbinfile()
+                if self.bfsw==self.devinfo['bootinfo']['primary']['version'] and self.options.noforce:
+                    self.critical("Looks like this switch is already running %s, please check you are looking at the correct switch!" % self.bfsw)
+                elif self.devinfo['binfilestatus'].has_key('error'):
+                    self.info(self.devinfo['binfilestatus']['error'])
+                else:
+                    self.version=self.pe.bootinfo['primary']['version']
+                    if self.devinfo['oginfo'].has_key('mgmtip'):
+                        if self.pe.prompt != self.og.prompt:
+                            self.critical('The prompt on the opengear (%s) does not match! Please investigate!' % self.og.prompt)
+                        else:
+                            self.pe.runchecks('pre')
+                            if len(self.pe.errors[self.hostname]['critical'])<1:
+                                self.info('---updating boot info, this may take a little while...')
+                                self.updateBoot()
+                                if len(self.pe.errors[self.hostname]['critical'])>0:
+                                    self.info('---found errors restoring config boot order!')
+                                    self.pe.setBoot(self.devinfo['bootinfo']['primary']['slot'],self.devinfo['bootinfo']['secondary']['slot'])
+                #closing connection
+                self.info('--exiting device...')
+                self.pe.exit()
+                self.combineerrors()
             self.devinfo['errors']={'prepare':self.errors[self.hostname]}
             if len(self.errors[self.hostname]['critical'])>0:
                 self.devinfo['prepstatus']='fail'
