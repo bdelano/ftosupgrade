@@ -4,6 +4,9 @@ import time
 import json
 import sys
 import logging
+import datetime
+import re
+from mysql import mysql
 from termcolor import colored
 from terminaltables import AsciiTable
 
@@ -29,6 +32,7 @@ class utils:
         self.peclog=self.devpath+'commands.log'
         self.errorlog=self.devpath+'errors.log'
         self.logger=logging.getLogger('messages')
+        self.dbh=mysql()
 
     def writedevinfo(self):
         """
@@ -97,10 +101,18 @@ class utils:
                 self.warning('unable to read the devinfofile:%s' % self.devinfofile)
 
     def setLogging(self):
+        log=logging.getLogger()
+        for hdlr in log.handlers[:]: log.removeHandler(hdlr)
         logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s',
         filename=self.devpath+'/info.log',
         level=logging.DEBUG,
         datefmt='%Y-%m-%d %H:%M:%S')
+
+    def writetoinfo(self,msg,type):
+        ts=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        m="%s:%s:%s\n" % (ts,type,msg)
+        self.logger.write(m)
+
 
     def debug(self,msg):
         self.logger.debug(msg)
@@ -126,3 +138,64 @@ class utils:
 
     def addError(self,m,level):
         self.errors[self.hostname][level].append({'tstamp':time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),'message':m})
+
+    def combineerrors(self,remerrors):
+        for et in ['warning','critical']:
+            for e in remerrors[et]:
+                self.errors[self.hostname][et].append(e)
+
+    def getMGG(self):
+        """
+        checks devinfo for previous list if its not there...
+        it gets partial name for mgg and uses it to search db
+        """
+        if 'mgglist' in self.devinfo:
+            self.debug('found mgglist in devinfo!')
+            self.mgg=self.devinfo['mgglist']
+        else:
+            mggpfrx=re.compile("^([\w]{3})(([\d])[\d]+)-.*")
+            self.info('--searching for nearest mgg switches')
+            mggpfm=mggpfrx.match(self.hostname)
+            if mggpfm:
+                mgg=mggpfm.group(1)+mggpfm.group(3)+'%mgg%'
+                self._findMGG(mgg)
+            else:
+                self.warning('Unable to match name prefix for mgg, no mgg found!')
+
+
+    def _findMGG(self,mgg):
+        """
+        finds the nearest mgg to check for looped port bug.
+        """
+        self.mgg=list()
+        sql="select trignodename from devices where trignodename like '%s'" % mgg
+        self.debug('mggsql:%s' % sql)
+        self.dbh.buildretdict(sql)
+        if len(self.dbh.retdict)>0:
+            for o in self.dbh.retdict:
+                self.mgg.append(o['trignodename'])
+            self.devinfo['mgglist']=self.mgg
+        else:
+            self.warning('No MGG switches could be found, please check manually!')
+
+
+
+    def getOGdetails(self):
+        """
+        pulls opengear details from our mysql database
+        """
+        self.info('--getting opengear details...')
+        sql="""
+        select d.label,d.mgmtip,l.interface
+        from layer2 as l
+        join devices as d on l.hostid=d.id
+        left outer join devices as rp on rp.id=l.ifid
+        where d.label like '%-oob'
+        and rp.trignodename='{hostname}'
+        """.format(hostname=self.hostname)
+        self.dbh.buildretdict(sql)
+        if len(self.dbh.retdict)==1:
+            self.devinfo['oginfo']=self.dbh.retdict[0]
+        else:
+            self.critical('ogerror:unable to get opengear details!')
+            self.devinfo['oginfo']={'error':'unable to get opengear details!'}

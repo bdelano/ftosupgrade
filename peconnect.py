@@ -12,6 +12,8 @@ class pelogon(utils):
         self.user=tcrc.creds['joyent'].username
         self.logfile='pecommands.log'
         if self.peclog: self.logfile=self.peclog
+        if 'logfile' in kw:
+            self.logfile=kw['logfile']
         self.prompt="#"
         self.cprompt="#"
         self.bootinfo={}
@@ -49,6 +51,9 @@ class pelogon(utils):
             self.connect()
 
     def ogconnect(self):
+        """
+        login to opengear
+        """
         sshcmd="ssh -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=no -o GSSAPIAuthentication=no -o CheckHostIP=no  -o UserKnownHostsFile=/dev/null -l '"+self.ogu+"' "+self.ip;
         self.debug(sshcmd)
         self.e=pexpect.spawn(sshcmd)
@@ -197,7 +202,7 @@ class pelogon(utils):
 
 
     def connect(self):
-        sshcmd="ssh -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=no -o GSSAPIAuthentication=no -o CheckHostIP=no  -o UserKnownHostsFile=/dev/null -l '"+self.user+"' "+self.ip;
+        sshcmd="ssh -o PubkeyAuthentication=no -o StrictHostKeyChecking=no -o GSSAPIAuthentication=no -o CheckHostIP=no  -o UserKnownHostsFile=/dev/null -l '"+self.user+"' "+self.ip;
         self.e=pexpect.spawn(sshcmd)
         self.debug(sshcmd)
         #e.delaybeforesend = 1
@@ -214,8 +219,6 @@ class pelogon(utils):
             self.critical("ERROR: %s connection timed out" % self.hostname)
         elif resp==3:
             self.critical("ERROR: %s invalid response %s" % self.hostname,self.e.before)
-        else:
-            self.getbootinfo()
 
     def getbaseinfo(self):
         shver=self.getCommand('show version | no-more')
@@ -328,6 +331,24 @@ class pelogon(utils):
         if '% Error:' in output:
             self.warning('Command Error command:%s\n%s%s' % (cmd,self.prompt,output))
         return output
+
+    def checkBlocked(self):
+        """
+        checks the nearest mgg for blocked ports and fails with critical error if any are found
+        """
+        cmdres=self.getCommand('show spanning blockedports |no-more')
+        lines=cmdres.splitlines()
+        (summary,count)=lines[-2].split(': ')
+        #clean up results
+        for i in range(3): del lines[0]
+        for i in range(1): del lines[-1]
+        if int(count)>0:
+            self.critical('Found ports blocking on %s Please investigate!' % self.hostname)
+            for l in lines:
+                self.logger.critical(l)
+            self.warning('Typically this issue can be resolved by logging into the MGG switch and bouncing the blocked ports!')
+        else:
+            self.info('--no blocked ports found...')
 
     def runchecks(self,type):
         """

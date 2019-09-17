@@ -5,6 +5,7 @@ import time
 import os
 from utilities import utils
 from peconnect import pelogon
+from localauth import binmd5
 
 class uploadbin(utils):
     def __init__(self,**kw):

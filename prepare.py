@@ -5,7 +5,6 @@ import re
 import sys
 from utilities import utils
 from upload import uploadbin
-from mysql import mysql
 from peconnect import pelogon
 from localauth import binmd5
 
@@ -21,6 +20,7 @@ class prepare(utils):
         self.info("----------------\npreparing %s for upgrade..." % self.hostname,attrs='bold')
         self.loaddevinfo()
         self.bfsw=''
+        self.mgg=None
         #reset log files
         if (self.devinfo.has_key('prepstatus') and self.devinfo['prepstatus']=='success' and self.options.noforce):
             self.info("Looks like this device has already been prepared, moving on...",attrs='bold')
@@ -28,11 +28,13 @@ class prepare(utils):
             #self.checkOG()
         else:
             self.resetlogs()
+            self.checkMGG()
             self.getOGdetails()
-            if 'error' not in self.devinfo['oginfo']:
+            if 'error' not in self.devinfo['oginfo'] and len(self.errors[self.hostname]['warning'])<1:
                 self.checkOG()
                 self.info('--connecting to device via ssh')
                 self.pe=pelogon(hostname=self.hostname,options=self.options)
+                self.pe.getbootinfo()
                 self.devinfo['bootinfo']=self.pe.bootinfo
                 self.checkbinfile()
                 if self.bfsw==self.devinfo['bootinfo']['primary']['version'] and self.options.noforce:
@@ -49,13 +51,10 @@ class prepare(utils):
                             if len(self.pe.errors[self.hostname]['critical'])<1:
                                 self.info('---updating boot info, this may take a little while...')
                                 self.updateBoot()
-                                if len(self.pe.errors[self.hostname]['critical'])>0:
-                                    self.info('---found errors restoring config boot order!')
-                                    self.pe.setBoot(self.devinfo['bootinfo']['primary']['slot'],self.devinfo['bootinfo']['secondary']['slot'])
                 #closing connection
                 self.info('--exiting device...')
                 self.pe.exit()
-                self.combineerrors()
+                self.combineerrors(self.pe.errors[self.hostname])
             self.devinfo['errors']={'prepare':self.errors[self.hostname]}
             if len(self.errors[self.hostname]['critical'])>0:
                 self.devinfo['prepstatus']='fail'
@@ -65,11 +64,6 @@ class prepare(utils):
                 self.info('\npreparation completed successfully feel free to upgrade',attrs='bold')
             self.writedevinfo()
 
-
-    def combineerrors(self):
-        for et in ['warning','critical']:
-            for e in self.pe.errors[self.hostname][et]:
-                self.errors[self.hostname][et].append(e)
 
     def checkOG(self):
         """
@@ -144,25 +138,13 @@ class prepare(utils):
                 self.critical(self.devinfo['binfilestatus']['error'])
 
 
-            #still need to write something to test a couple of comands
-
-    def getOGdetails(self):
-        """
-        pulls opengear details from our mysql database
-        """
-        self.info('--getting opengear details...')
-        self.dbh=mysql()
-        sql="""
-        select d.label,d.mgmtip,l.interface
-        from layer2 as l
-        join devices as d on l.hostid=d.id
-        left outer join devices as rp on rp.id=l.ifid
-        where d.label like '%-oob'
-        and rp.trignodename='{hostname}'
-        """.format(hostname=self.hostname)
-        self.dbh.buildretdict(sql)
-        if len(self.dbh.retdict)==1:
-            self.devinfo['oginfo']=self.dbh.retdict[0]
-        else:
-            self.critical('ogerror:unable to get opengear details!')
-            self.devinfo['oginfo']={'error':'unable to get opengear details!'}
+    def checkMGG(self):
+        self.getMGG()
+        if len(self.mgg)>0:
+            for mgg in self.mgg:
+                self.info('checking for blocked ports on %s...' % mgg)
+                mggpe=pelogon(hostname=mgg,options=self.options,logfile=self.peclog)
+                mggpe.checkBlocked()
+                mggpe.exit()
+                if len(mggpe.errors[mgg]['critical'])>0:
+                        self.combineerrors(mggpe.errors[mgg])

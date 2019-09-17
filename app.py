@@ -10,7 +10,7 @@ from upgrade import upgrade
 from backout import backout
 from upload import uploadbin
 from utilities import utils
-VERSION='1.7BETA'
+VERSION='1.11BETA'
 BINFILEPATH='/tftpboot/Dell/'
 
 class main():
@@ -84,11 +84,6 @@ class main():
                         m.warning('Found Errors with prepare... exiting!')
                         sys.exit()
 
-
-                #self.m.writeerrors()
-                #if len(self.m.errors[d]['critical'])>0:
-                #    self.m.warning('Critical Errors Found, exiting!\nPlease see %s/errors.log for details!' % d)
-                #    sys.exit()
         else:
             print("Please specify at least 1 device and a binary file name")
             parser.print_help()
@@ -98,7 +93,7 @@ class main():
         """
         takes a list of devices and forks a separate process for uploading a file
         """
-        #print(self.devlist)
+
         for d in self.devlist:
             m=utils(hostname=d,options=self.options,silent=True)
             m.setupworkspace()

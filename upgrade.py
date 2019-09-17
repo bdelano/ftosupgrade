@@ -21,6 +21,7 @@ class upgrade(utils):
         self.upgraded=False
         self.loaddevinfo()
         self.pe=pelogon(hostname=self.hostname,options=self.options)  #ssh into switch, automatically retrieves bootinfo
+        self.pe.getbootinfo()
         #check to see if device is already upgraded
         self.checkupgraded()
         if not self.options.notest: self.upgraded=False # if testing pretend its not upgraded already
@@ -40,6 +41,7 @@ class upgrade(utils):
                 self.og.e.logfile=sys.stdout
                 if self.options.notest:
                     self.og.e.sendline('reload')
+                    self.debug('sending reload command now!')
                     resp=self.og.e.expect(['.*\[confirm yes/no\]:','Save\? \[yes/no\]:'])
                 else:
                     self.og.e.sendline('dir |no-more')
@@ -59,19 +61,21 @@ class upgrade(utils):
                         if self.options.notest: time.sleep(10) #sleeping to let device recover
                         self.info('-attempting to log on via opengear...')
                         self.og.remlogon()
-
                         if self.og.status=='success':
                             self.info('-login successful dropping opengear connection')
                             self.og.e.terminate()
                             self.info('-attempting to connect via ssh to complete checks...')
                             self.pe=pelogon(hostname=self.hostname,options=self.options)
+                            self.pe.getbootinfo()
+                            self.debug('after upgrade swversion:%s' % self.pe.bootinfo['primary']['version'])
                             self.checkupgraded()
                             if not self.options.notest: self.upgraded=True #added for testing
                             self.info('--waiting for 120 seconds for interfaces to come back before running post checks...')
                             if self.options.notest: time.sleep(120)
-                            self.runpostchecks()
+                            self.runpostchecks() #checks if swversion is correct and runs post checks
                         else:
-                            self.critical('ERROR: unable to log back into switch!\nPlease re-run the upgrade command as sometimes it takes a little while for tacacs!')
+                            self.critical('ERROR: unable to log back into switch!')
+                            self.warning('this can usually be fixed by just re-running this script as tacacs may not be reachable...')
                     else:
                         self.critical('unable to catch end of reload, please attempt to login manually')
                         self.critical(self.og.message)
@@ -80,15 +84,16 @@ class upgrade(utils):
                     self.og.e.expect(['.*\[confirm yes/no\]:','Save\? \[yes/no\]:'])
                     self.og.e.sendline('no')
                     self.og.e.expect(self.og.prompt)
-                    self.warning('looks like the config has changed since being prepared, please investigate!')
+                    self.critical('looks like the config has changed since being prepared, please investigate!')
                     self.warning('this can usually be fixed by just saving the config an re-running this script...')
                     self.devinfo['upgradestatus']='failed'
             else:
                 self.critical('unable to login to opengear:%s' % self.og.message)
                 self.devinfo['upgradestatus']='failed'
             self.og.e.terminate()
-
-        self.combineerrors()
+            
+        self.checkMGG()
+        self.combineerrors(self.pe.errors[self.hostname])
         self.devinfo['errors']={'upgrade':self.errors[self.hostname]}
         self.info('--exiting device...')
         self.pe.exit()
@@ -97,11 +102,6 @@ class upgrade(utils):
         else:
             self.info('upgraded successfully',attrs='bold')
         self.writedevinfo()
-
-    def combineerrors(self):
-        for et in ['warning','critical']:
-            for e in self.pe.errors[self.hostname][et]:
-                self.errors[self.hostname][et].append(e)
 
     def runpostchecks(self):
         """
@@ -141,3 +141,14 @@ class upgrade(utils):
         self.curversion=self.pe.bootinfo['primary']['version']
         if self.curversion==self.devinfo['binswversion']:
             self.upgraded=True
+
+    def checkMGG(self):
+        self.getMGG()
+        if len(self.mgg)>0:
+            for mgg in self.mgg:
+                self.info('checking for blocked ports on %s...' % mgg)
+                mggpe=pelogon(hostname=mgg,options=self.options,logfile=self.peclog)
+                mggpe.checkBlocked()
+                mggpe.exit()
+                if len(mggpe.errors[mgg]['critical'])>0:
+                        self.combineerrors(mggpe.errors[mgg])
