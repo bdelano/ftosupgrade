@@ -207,9 +207,10 @@ class pelogon(utils):
         self.debug(sshcmd)
         #e.delaybeforesend = 1
         #e.timeout = 15
-        self.e.expect('assword.*')
-        self.e.sendline(up_dict[self.user])
-        resp=self.e.expect(['assword.*','.*\$',pexpect.TIMEOUT,pexpect.EOF,'.*#'])
+        resp=self.e.expect(['assword.*',pexpect.EOF,pexpect.TIMEOUT])
+        if resp<1:
+            self.e.sendline(up_dict[self.user])
+            resp=self.e.expect(['assword.*','.*\$',pexpect.TIMEOUT,pexpect.EOF,'.*#'])
         self.e.logfile = open(self.logfile, 'a')
         if resp==0:
             self.critical("ERROR: %s invalid login and password" % self.hostname)

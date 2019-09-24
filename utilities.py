@@ -168,7 +168,7 @@ class utils:
         finds the nearest mgg to check for looped port bug.
         """
         self.mgg=list()
-        sql="select trignodename from devices where trignodename like '%s'" % mgg
+        sql="select trignodename from devices where trignodename like '{mgg}' and label not like '%lab%'".format(mgg=mgg)
         self.debug('mggsql:%s' % sql)
         self.dbh.buildretdict(sql)
         if len(self.dbh.retdict)>0:

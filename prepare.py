@@ -28,10 +28,10 @@ class prepare(utils):
             #self.checkOG()
         else:
             self.resetlogs()
-            self.checkMGG()
             self.getOGdetails()
-            if 'error' not in self.devinfo['oginfo'] and len(self.errors[self.hostname]['warning'])<1:
+            if 'error' not in self.devinfo['oginfo']:
                 self.checkOG()
+                self.checkMGG()
                 self.info('--connecting to device via ssh')
                 self.pe=pelogon(hostname=self.hostname,options=self.options)
                 self.pe.getbootinfo()
