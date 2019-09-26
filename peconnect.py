@@ -129,10 +129,10 @@ class pelogon(utils):
                 self.e.sendline(p)
                 self.e.logfile=open(self.logfile,'a')
                 resp=self.e.expect([self.prompt,'[\w]>','Last login','Login succ','Authentication failed','ogin incorrect','pam_open_session: session failure',pexpect.TIMEOUT,pexpect.EOF])
-                if resp>4:
+                if resp>6:
                     self.status='fail'
                     self.message='invalid response: '+self.e.before
-                elif resp>2:
+                elif resp>3:
                     self.status='fail'
                     self.message='login failure'
                 elif resp>0 and resp<4:
@@ -273,7 +273,7 @@ class pelogon(utils):
         pulls files using the 'dir' command and pushes them into a dictionary
         """
         files={}
-        dirres=self.getCommand('dir | no-more').split("\n")
+        dirres=self.getCommand('dir flash: |no-more').split("\n")
         for l in dirres:
             cols=l.split()
             if len(cols)>3:
