@@ -45,7 +45,7 @@ class prepare(utils):
                     self.version=self.pe.bootinfo['primary']['version']
                     if self.devinfo['oginfo'].has_key('mgmtip'):
                         if self.pe.prompt != self.og.prompt:
-                            self.critical('The prompt on the opengear (%s) does not match! Please investigate!' % self.og.prompt)
+                            self.critical('The prompt on the opengear (%s) does the one on the switch (%s)! Please investigate!' % (self.og.prompt,self.pe.prompt))
                         else:
                             self.pe.runchecks('pre')
                             if len(self.pe.errors[self.hostname]['critical'])<1:
